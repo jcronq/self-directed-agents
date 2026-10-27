@@ -42,3 +42,14 @@ await scenario('gate: fix -> integrate -> retest on integrated branch -> pass', 
   },
   (o, c) => o.gate_passed && o.final_branch === 'sd/int-r1' && o.fixed[0].id === 'F1' && o.issues_to_file.length === 1
     && /branch sd\/int-r1/.test(globalThis.t2) && c.includes('arch:int-r1#1'))
+await scenario('gate: a retried worker gets a fresh branch name', AG, { branch: 'feat', areas: [areas[0]] },
+  (l, p, c) => {
+    if (l.startsWith('test:')) return { area: 'a', actions: 1, works: [], findings: [], verdict: 'ok' }
+    if (l === 'triage#1') return { confirmed: [{ id: 'F1', title: 't', severity: 'major', reproduced: true, root_cause: 'x', repro: 'r' }], rejected: [], fix_packages: [{ id: 'p1', finding_ids: ['F1'], owned_files: ['a.py'], plan: 'p' }], issues_to_file: [], gate_passed: false }
+    if (l.startsWith('triage')) return { confirmed: [], rejected: [], fix_packages: [], issues_to_file: [], gate_passed: true }
+    if (l === 'work:r1-p1') return null // first attempt dies
+    if (l.startsWith('work:')) return work(branchOf(p))
+    if (l.startsWith('integrate:')) return { branch: branchOf(p), head_sha: 'h', merged: [], full_suite: { passed: 1, failed: 0, errors: 0, skipped: 0 }, summary: 's' }
+    return review(true)
+  },
+  (o, c) => o.gate_passed && c.includes('work:r1-p1-retry') && o.rounds[0].fixes[0].branch === 'sd/r1-p1-a2')

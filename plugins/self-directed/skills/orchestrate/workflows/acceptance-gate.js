@@ -47,7 +47,9 @@ const run = (role, label, phaseName, extra, opts) => agent(
   `Read ${A.prompts}/_common.md, then ${A.prompts}/${role}, and the schemas in ${A.prompts}/../schemas.md. Follow them with these values substituted:\n` +
   vars({ ports: nextPorts(), scratch: `${A.scratch || '/tmp/sd-gate'}/${label.replace(/[^\w.-]/g, '_')}`, ...extra }),
   { label, phase: phaseName, ...opts })
-const retry = async (f) => (await f()) || (await f())
+// The attempt number lets a retry use a fresh branch name if the failed attempt left one behind.
+const retry = async (f) => (await f(1)) || (await f(2))
+const att = (b, n) => (n > 1 ? `${b}-a${n}` : b)
 const target = (branch) => `branch ${branch} (check it out in a detached worktree of your own and start it: ${A.start_cmd || "the profile's 'Run live' command"})`
 const problemsText = (rv) => rv.problems.map(p => `- ${p.file}: ${p.issue}`).join('\n') + `\nReviewer summary: ${rv.summary}`
 const nitsText = (rv) => (rv.nits || []).map(n => `- ${n}`).join('\n') || '(none)'
@@ -64,8 +66,8 @@ async function reviewed(id, phaseName, base, brief, doWork, reviseRole, schema, 
     last = { approved: rs.every(r => r.approved), problems: rs.flatMap((r, i) => r.problems.map(p => ({ ...p, issue: `[${lenses[i]}] ${p.issue}` }))), nits: rs.flatMap(r => r.nits || []), summary: rs.map((r, i) => `${lenses[i]}: ${r.summary}`).join('\n') }
     if (last.approved) return { id, approved: true, work, last }
     if (round === REVIEW_ROUNDS) break
-    const next = await retry(() => run(reviseRole, `work:${id}#${round + 1}`, phaseName,
-      { id, base, brief, round: round + 1, branch: `${work.branch.replace(/-r\d+$/, '')}-r${round + 1}`, previous_branch: work.branch, previous_report: work, problems: problemsText(last), nits: nitsText(last), ...extra },
+    const next = await retry((n) => run(reviseRole, `work:${id}#${round + 1}${n > 1 ? '-retry' : ''}`, phaseName,
+      { id, base, brief, round: round + 1, branch: att(`${work.branch.replace(/(-r\d+)?(-a\d+)?$/, '')}-r${round + 1}`, n), previous_branch: work.branch, previous_report: work, problems: problemsText(last), nits: nitsText(last), ...extra },
       { schema, model: WORKER, isolation: 'worktree' }))
     if (!next) return { id, approved: false, work, last, note: `round ${round + 1}: revision failed twice` }
     work = next
@@ -87,7 +89,7 @@ for (let round = 1; round <= MAX && !passed; round++) {
   log.push(entry)
 
   phase('Triage')
-  const tri = await retry(() => run('triage.md', `triage#${round}`, 'Triage',
+  const tri = await retry((n) => run('triage.md', `triage#${round}${n > 1 ? '-retry' : ''}`, 'Triage',
     { round, reports, previously_fixed: fixed, target: target(branch), missing_areas: missing.length ? `${missing.join(', ')}: their testers FAILED; that coverage is missing` : '(none)' },
     { schema: TRIAGE, model: REVIEWER }))
   if (!tri) { entry.error = 'triage failed twice'; break }
@@ -105,7 +107,7 @@ for (let round = 1; round <= MAX && !passed; round++) {
     const brief = `Fix these reproduced findings (add a regression test for each):\n${JSON.stringify(findings)}\nPlan: ${p.plan}`
     const others = tri.fix_packages.filter(q => q.id !== p.id).flatMap(q => q.owned_files)
     return reviewed(id, 'Fix', branch, brief,
-      () => run('worker.md', `work:${id}`, 'Fix', { id, base: branch, brief, branch: `sd/${id}`, owned_files: p.owned_files.join(', '), others: others.join(', ') || '(none)' },
+      (n) => run('worker.md', `work:${id}${n > 1 ? '-retry' : ''}`, 'Fix', { id, base: branch, brief, branch: att(`sd/${id}`, n), owned_files: p.owned_files.join(', '), others: others.join(', ') || '(none)' },
         { schema: WORK, model: WORKER, isolation: 'worktree' }),
       'revise.md', WORK, FIX_LENSES).then(r => ({ ...r, finding_ids: p.finding_ids }))
   }))
@@ -117,7 +119,7 @@ for (let round = 1; round <= MAX && !passed; round++) {
   const id = `int-r${round}`
   const branches = ok.map(r => `- ${r.work.branch}`).join('\n')
   const integ = await reviewed(id, 'Integrate', branch, `Integration of round ${round} fixes on top of ${branch}.`,
-    () => run('integrator.md', `integrate:${id}`, 'Integrate', { id, base: branch, branch: `sd/${id}`, branches, problems: '', previous_branch: '' },
+    (n) => run('integrator.md', `integrate:${id}${n > 1 ? '-retry' : ''}`, 'Integrate', { id, base: branch, branch: att(`sd/${id}`, n), branches, problems: '', previous_branch: '' },
       { schema: INTEG, model: WORKER, isolation: 'worktree' }),
     'integrator.md', INTEG, ['general', 'arch'], { branches })
   if (!integ.approved) { entry.integration = integ.note || 'not approved'; break }

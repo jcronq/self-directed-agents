@@ -11,9 +11,12 @@ add_block() { # file, block-content
   local f="$1" body="$2"
   mkdir -p "$(dirname "$f")"; touch "$f"
   if grep -qF "$BEGIN" "$f"; then
-    # Replace the existing block, so a moved kit updates its path.
-    awk -v b="$BEGIN" -v e="$END" -v body="$body" '
-      $0==b {print; print body; skip=1; next}
+    if ! grep -qF "$END" "$f"; then
+      echo "  WARNING: $f has the begin marker but no end marker; left untouched. Fix it by hand." >&2; return
+    fi
+    # Replace the existing block, so a moved kit updates its path. ENVIRON keeps backslashes literal.
+    BODY="$body" awk -v b="$BEGIN" -v e="$END" '
+      $0==b {print; print ENVIRON["BODY"]; skip=1; next}
       $0==e {skip=0}
       !skip {print}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
     echo "  updated in $f"; return
@@ -43,7 +46,9 @@ while [ $# -gt 0 ]; do
       [ $found -eq 0 ] && add_block "$DIR/AGENTS.md" "$NOTE" ;;
     uninstall) # Remove the blocks this script added to the global files
       for f in "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md"; do
-        [ -e "$f" ] && grep -qF "$BEGIN" "$f" && { awk -v b="$BEGIN" -v e="$END" '$0==b{skip=1;next} $0==e{skip=0;next} !skip{print}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"; echo "  removed from $f"; }
+        [ -e "$f" ] && grep -qF "$BEGIN" "$f" || continue
+        grep -qF "$END" "$f" || { echo "  WARNING: $f has no end marker; left untouched." >&2; continue; }
+        { awk -v b="$BEGIN" -v e="$END" '$0==b{skip=1;next} $0==e{skip=0;next} !skip{print}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"; echo "  removed from $f"; }
       done ;;
     plugin)  # Claude Code skills + workflows: install from this repo as a marketplace
       cat <<MSG

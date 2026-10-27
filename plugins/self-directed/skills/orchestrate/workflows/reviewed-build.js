@@ -86,7 +86,7 @@ for (let round = 1; work && round <= MAX; round++) {
   const revArgs = { round: round + 1, branch: `sd/${A.id}-r${round + 1}`, previous_branch: work.branch, previous_report: work, problems: problemsText(rv), nits: nitsText(rv) }
   const label = `work:${A.id}#${round + 1}`
   const next = (await run('revise.md', label, revArgs, { schema: WORK, model: WORKER, isolation: 'worktree' }))
-    || (await run('revise.md', `${label}-retry`, revArgs, { schema: WORK, model: WORKER, isolation: 'worktree' }))
+    || (await run('revise.md', `${label}-retry`, { ...revArgs, branch: `${revArgs.branch}-a2` }, { schema: WORK, model: WORKER, isolation: 'worktree' }))
   if (!next) { notes.push(`round ${round + 1}: revision failed twice; stopping unapproved`); break }
   work = next
 }
