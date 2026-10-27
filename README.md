@@ -28,9 +28,10 @@ It came down to five habits:
 | `templates/HANDOFF.md`, `templates/memory-note.md` | Resume a long effort on a fresh session or host; record a correction | Any agent |
 | `prompts/` + `schemas.md` | Role prompts (worker, reviewers, use tester, triage, integrator) and the report schemas | Any orchestrator, or by hand |
 | `plugins/self-directed/` | Claude Code plugin: `orchestrate` and `project-profile` skills, plus two Workflow scripts (`reviewed-build`, `acceptance-gate`) | Claude Code |
+| `tests/workflows.test.mjs` | Control-flow tests for the Workflow scripts with a mocked `agent()` (`node tests/workflows.test.mjs`) | Node |
 | `extras/stop-evidence-hook/` | Optional Stop hook that bounces "done" claims made without evidence | Claude Code |
 
-`AGENTS.md`, `prompts/`, `schemas.md` and `templates/PROJECT_PROFILE.md` are symlinks into the plugin, so
+`AGENTS.md`, `prompts/`, `schemas.md` and the files in `templates/` are symlinks into the plugin, so
 there's one copy of each. On Windows, clone with `core.symlinks=true`.
 
 ## Install
@@ -42,6 +43,7 @@ cd ~/dev/self-directed-agents
 ./install.sh codex               # reference it from ~/.codex/AGENTS.md
 ./install.sh project ~/dev/myrepo   # seed PROJECT_PROFILE.md in a repo
 ./install.sh plugin              # prints the /plugin commands for the skills and workflows
+./install.sh uninstall           # removes the global blocks again
 ```
 
 None of it depends on a claude.ai account. The manual is plain markdown, and the plugin installs from any git

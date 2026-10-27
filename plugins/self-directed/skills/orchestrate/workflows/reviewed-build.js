@@ -6,16 +6,20 @@ export const meta = {
 // args: {
 //   repo, profile, prompts,            // absolute paths; prompts = this skill's prompts/ dir
 //   id, base, brief,                   // package id, base branch/sha, brief text
-//   owned_files?: [], others?: [],     // file ownership for parallel packages
+//   owned_files?: [], others?: [],     // files this package owns / files owned by parallel packages
 //   lenses?: ['general','arch','ux'],  // default ['general','arch']
-//   max_rounds?: 3, ports?: '9200-9299', scratch?: '/tmp/<x>',
+//   max_rounds?: 3,
+//   ports?: '9200-9999',               // give each concurrent run its own range
+//   scratch?: '/tmp/sd',               // each agent gets <scratch>/<id>/<label>
 //   worker_model?: 'sonnet', reviewer_model?: 'opus', project?: ''
 // }
 const A = args
+const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md' }
 const LENSES = A.lenses || ['general', 'arch']
+for (const k of ['repo', 'profile', 'prompts', 'id', 'base', 'brief']) if (!A[k]) throw new Error(`missing arg: ${k}`)
+for (const l of LENSES) if (!ROLE[l]) throw new Error(`unknown lens: ${l} (use ${Object.keys(ROLE).join(', ')})`)
 const MAX = A.max_rounds || 3
 const WORKER = A.worker_model || 'sonnet', REVIEWER = A.reviewer_model || 'opus'
-const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md' }
 
 const COUNTS = { type: 'object', properties: { passed: { type: 'integer' }, failed: { type: 'integer' }, errors: { type: 'integer' }, skipped: { type: 'integer' } }, required: ['passed', 'failed', 'errors', 'skipped'] }
 const WORK = { type: 'object', properties: {
@@ -34,29 +38,30 @@ const REVIEW = { type: 'object', properties: {
   summary: { type: 'string' } },
   required: ['approved', 'problems', 'verified', 'summary'] }
 
-const hash = (t) => { let h = 7; for (const c of t) h = (h * 31 + c.charCodeAt(0)) % 100003; return h }
+// Ports: hand out consecutive 10-port blocks so parallel agents never collide.
 const [P0, P1] = (A.ports || '9200-9999').split('-').map(Number)
-const portsFor = (label) => { const n = Math.max(1, Math.floor((P1 - P0 + 1) / 10)); const p = P0 + (hash(label) % n) * 10; return `${p}-${p + 9}` }
+let slot = 0
+const nextPorts = () => { const n = Math.max(1, Math.floor((P1 - P0 + 1) / 10)); const p = P0 + (slot++ % n) * 10; return `${p}-${p + 9}` }
+const scratchFor = (label) => `${A.scratch || '/tmp/sd'}/${A.id}/${label.replace(/[^\w.-]/g, '_')}`
 
 // Each agent reads its role file itself, so the prompts live in one place.
 const vars = (extra) => Object.entries({
-  project: A.project || A.repo, repo: A.repo, profile: A.profile,
-  scratch: A.scratch || `/tmp/sd-${A.id}`, id: A.id, base: A.base, brief: A.brief,
+  project: A.project || A.repo, repo: A.repo, profile: A.profile, id: A.id, base: A.base, brief: A.brief,
   owned_files: (A.owned_files || []).join(', ') || '(not restricted)',
   others: (A.others || []).join(', ') || '(none)', ...extra,
 }).map(([k, v]) => `{{${k}}} = ${typeof v === 'string' ? v : JSON.stringify(v)}`).join('\n')
-const prompt = (role, extra) =>
+const run = (role, label, extra, opts) => agent(
   `Read ${A.prompts}/_common.md, then ${A.prompts}/${role}, and the schemas in ${A.prompts}/../schemas.md. ` +
-  `Follow them with these values substituted:\n${vars(extra)}`
+  `Follow them with these values substituted:\n${vars({ ports: nextPorts(), scratch: scratchFor(label), ...extra })}`,
+  { label, phase: 'Build', ...opts })
 
-const fmt = (rv) => rv.problems.map(p => `- ${p.file}: ${p.issue}`).join('\n') +
-  `\nNits: ${(rv.nits || []).join(' | ')}\nSummary: ${rv.summary}`
+const problemsText = (rv) => rv.problems.map(p => `- ${p.file}: ${p.issue}`).join('\n') + `\nReviewer summary: ${rv.summary}`
+const nitsText = (rv) => (rv.nits || []).map(n => `- ${n}`).join('\n') || '(none)'
 
 async function review(work, round) {
-  const label = `${A.id}#${round}`
-  const rs = await Promise.all(LENSES.map(l => agent(
-    prompt(ROLE[l], { branch: work.branch, report: work, ports: portsFor(`${l}:${label}`) }),
-    { label: `${l}:${label}`, phase: 'Build', schema: REVIEW, model: REVIEWER })))
+  const one = (l) => run(ROLE[l], `${l}:${A.id}#${round}`, { branch: work.branch, report: work }, { schema: REVIEW, model: REVIEWER })
+  let rs = await Promise.all(LENSES.map(one))
+  rs = await Promise.all(rs.map((r, i) => r || one(LENSES[i]))) // retry only the reviewers that died
   if (rs.some(r => !r)) return null
   return {
     approved: rs.every(r => r.approved),
@@ -67,20 +72,22 @@ async function review(work, round) {
 }
 
 phase('Build')
-let work = await agent(prompt('worker.md', { branch: `sd/${A.id}`, ports: portsFor(`work:${A.id}`) }),
-  { label: `work:${A.id}`, phase: 'Build', schema: WORK, model: WORKER, isolation: 'worktree' })
+const notes = []
+let work = await run('worker.md', `work:${A.id}`, { branch: `sd/${A.id}` }, { schema: WORK, model: WORKER, isolation: 'worktree' })
+if (!work) notes.push('worker failed; nothing to review')
 const history = []
-let approved = false, round = 1
-for (; work && round <= MAX; round++) {
-  let rv = await review(work, round)
-  if (!rv) rv = await review(work, round) // one retry if a reviewer died
-  if (!rv) break
+let approved = false
+for (let round = 1; work && round <= MAX; round++) {
+  const rv = await review(work, round)
+  if (!rv) { notes.push(`round ${round}: reviewers failed twice`); break }
   history.push(rv)
   if (rv.approved) { approved = true; break }
   if (round === MAX) break
-  work = (await agent(prompt('revise.md', {
-    round: round + 1, branch: `sd/${A.id}-r${round + 1}`, previous_branch: work.branch,
-    previous_report: work, problems: fmt(rv), ports: portsFor(`work:${A.id}#${round + 1}`),
-  }), { label: `work:${A.id}#${round + 1}`, phase: 'Build', schema: WORK, model: WORKER, isolation: 'worktree' })) || work
+  const revArgs = { round: round + 1, branch: `sd/${A.id}-r${round + 1}`, previous_branch: work.branch, previous_report: work, problems: problemsText(rv), nits: nitsText(rv) }
+  const label = `work:${A.id}#${round + 1}`
+  const next = (await run('revise.md', label, revArgs, { schema: WORK, model: WORKER, isolation: 'worktree' }))
+    || (await run('revise.md', `${label}-retry`, revArgs, { schema: WORK, model: WORKER, isolation: 'worktree' }))
+  if (!next) { notes.push(`round ${round + 1}: revision failed twice; stopping unapproved`); break }
+  work = next
 }
-return { id: A.id, approved, rounds: Math.min(round, MAX), branch: work?.branch, report: work, last_review: history[history.length - 1] || null }
+return { id: A.id, approved, review_rounds: history.length, branch: work?.branch, report: work, last_review: history[history.length - 1] || null, notes }

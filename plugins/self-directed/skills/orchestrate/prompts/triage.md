@@ -3,6 +3,9 @@ You are the TRIAGE LEAD for live-use-test round {{round}}.
 Findings from this round's testers:
 {{reports}}
 
+Areas whose testers FAILED this round (that coverage is missing; the gate can't pass on it):
+{{missing_areas}}
+
 Findings fixed in earlier rounds (watch for regressions):
 {{previously_fixed}}
 

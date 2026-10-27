@@ -4,7 +4,7 @@ First: create branch `{{branch}}` from `{{base}}` in your own worktree.
 Brief:
 {{brief}}
 
-Owned files: {{owned_files}}. Packages running in parallel own: {{others}}.
+Owned files: {{owned_files}}. Files owned by packages running in parallel (don't edit them): {{others}}.
 If you truly need to change a file you don't own, make the smallest change you can and explain it in `unresolved`.
 
 How to work:

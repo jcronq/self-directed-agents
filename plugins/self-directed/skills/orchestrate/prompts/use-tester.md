@@ -11,5 +11,5 @@ Severity rubric (apply it strictly):
 {{rubric}}
 Anything real but outside this layer: severity `out_of_scope`, with a title prefix naming the layer.
 
-Every finding needs exact repro steps, expected, actual, and evidence (a transcript, a screenshot path or a log lines).
+Every finding needs exact repro steps, expected, actual, and evidence (a transcript, a screenshot path or log lines).
 Also record what WORKS. Report using the Live-use-test report schema, with an honest `actions` count.

@@ -6,7 +6,7 @@ description: Run self-directed, multi-agent delivery of a goal to verified compl
 # Orchestrate: deliver a goal to verified completion
 
 Follow the operating manual, `AGENTS.md` next to this file, throughout. Read it now if it is not already in your instructions. This skill is its procedure.
-The other files referenced below sit next to this SKILL.md too: `prompts/`, `schemas.md`, `workflows/`.
+The other files referenced below sit next to this SKILL.md too: `prompts/`, `schemas.md`, `workflows/`, `templates/`.
 
 ## 0. Ground yourself
 - Find the project profile (`PROJECT_PROFILE.md` at the repo root, or wherever the project's CLAUDE.md/AGENTS.md points).
@@ -24,7 +24,8 @@ The other files referenced below sit next to this SKILL.md too: `prompts/`, `sch
 **With the Workflow tool** (when it exists and the owner opted in; invoking this skill counts as opting in to
 its workflows): run `workflows/reviewed-build.js` once per package, independent packages in parallel, with args
 `{repo, profile, prompts: "<this skill dir>/prompts", id, base, brief, owned_files, others, lenses, ports}`.
-Add `"ux"` to lenses for anything user-facing. Give each concurrent package a distinct port range.
+Lenses are `general`, `arch`, `ux`; add `"ux"` for anything user-facing. Give each concurrent package a distinct
+port range and scratch dir.
 
 **Without it:** run the same loop by hand with subagents:
 worker (`prompts/_common.md` + `prompts/worker.md`) → reviewers in parallel, one per lens, each in a fresh agent →
@@ -38,7 +39,7 @@ Never integrate unapproved work. List it for the owner with its last review.
 Push it right away as a draft PR if the profile allows pushing. The push doesn't wait for the gate; the merge does.
 
 ## 4. Live use test (the acceptance gate)
-- Write down the areas (one tester each), the interface for each area's layer, the severity rubric and the
+- Write down the areas (one tester each, as `{key, focus, interface}`), the interface for each area's layer, the severity rubric and the
   gate rule (all from the profile).
 - **With the Workflow tool:** `workflows/acceptance-gate.js` with `{repo, profile, prompts, branch, areas, rubric, gate, ports}`.
 - **Without it:** testers in parallel (`use-tester.md`) → `triage.md` (reproduce every finding) → fix packages
@@ -53,8 +54,7 @@ Push it right away as a draft PR if the profile allows pushing. The push doesn't
 - Restart or redeploy what the profile says should run on the target.
 
 ## 6. Close out
-- Update `HANDOFF.md` and the status document. Turn every owner correction from this effort into a durable
-  note (rule / Why / How to apply) **and** fold it into the prompts you used.
+- Update `HANDOFF.md` (`templates/HANDOFF.md`) and the status document. Turn every owner correction from this effort into a durable note (`templates/memory-note.md`: rule / Why / How to apply) **and** fold it into the prompts you used.
 - Report per manual §11: what needs the owner, what was done with its evidence, what was filed, what's next.
 
 ## Watch-outs

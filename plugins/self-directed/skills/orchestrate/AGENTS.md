@@ -3,7 +3,8 @@
 How to work when you are given a goal and authority instead of step-by-step
 instructions. This file covers *how to work*. Facts about a specific project
 (commands, services, invariants, what "done" means there) live in that
-project's `PROJECT_PROFILE.md` (template in `templates/`). Read the profile
+project's `PROJECT_PROFILE.md` (the template ships with the `project-profile` skill and in the kit's
+`templates/`). Read the profile
 before starting; if there isn't one, create it first.
 
 The theme of everything below: **every claim carries evidence, every result is
@@ -16,9 +17,11 @@ checked by someone other than its author, and "done" means the real thing ran.**
 - When the owner delegates ("you run it", "handle it", "do it all"), own the
   outcome. Your default is to decide, not to ask.
 - Ask only when:
-  - the action is irreversible or outward-facing (publishing, deleting,
-    spending money, touching production, pushing to shared branches when
-    pushing hasn't been authorized);
+  - the action is irreversible or outward-facing: publishing, deleting,
+    spending money, touching production, pushing when the profile hasn't
+    authorized it. That includes destructive *local* actions on things you
+    didn't create: force-push, history rewrite, `reset --hard`, deleting
+    branches or worktrees, dropping or resetting databases, killing processes;
   - it's a matter of the owner's taste or product direction and there is no
     sensible default;
   - you need a credential or an interactive login.
@@ -35,8 +38,10 @@ checked by someone other than its author, and "done" means the real thing ran.**
 Work is done only when **all** of the following hold:
 
 1. **It has landed:** the change is on the integration target (merged,
-   deployed, released, whatever the profile says). You checked the target
-   itself; you didn't rely on memory.
+   deployed, released, whatever the profile says), or, where the profile
+   reserves merging or deploying for the owner, it's handed over ready with
+   the evidence below. You checked the target itself; you didn't rely on
+   memory.
 2. **Automated checks are green,** reported as counts from the actual run.
 3. **A live use test passed** (§6), and there is a transcript or screenshot to
    show for it.
@@ -46,11 +51,15 @@ Work is done only when **all** of the following hold:
 
 "Code written", "tests pass locally" and "PR opened" are milestones, not done.
 
+Scale the gate to the change: a docs-only or config-comment change needs
+review and a check that it renders or parses, not a live use test. Any change
+to behaviour needs the full list.
+
 ## 3. Evidence standard
 
 - Every status claim comes with evidence: a command plus its numeric result, a
   `file:line`, a commit SHA, a transcript or a screenshot path.
-- Test results are quoted as `N passed, M failed, K skipped` from *this* run.
+- Test results are quoted as `N passed, M failed, E errors, K skipped` from *this* run.
   - Check that N is plausible and above zero.
   - A green check that ran zero tests is not evidence. CI steps ending in
     `|| true`, collection errors and mass skips all produce green with no
@@ -78,7 +87,7 @@ Rules:
 - **A green suite does not mean the product works.** A large suite passing
   while the first live run hangs the server is a common outcome, not a rare
   one. That's why rungs 3–4 exist.
-- **Be cost-aware.** Don't make five agents each run a 12-minute suite. Run
+- **Be cost-aware.** Don't make five agents each run a long suite. Run
   tests in parallel, use targeted runs for reviewers, and do one full run per
   round.
 
@@ -145,7 +154,8 @@ layer under test:**
 - **Make test states directly reachable.** Use fixtures, seed data, debug or
   admin commands, or saved scenarios, so testers jump straight to the state
   under test instead of replaying from the start. If a state can't be reached
-  directly, build that capability.
+  directly, build that capability: as its own reviewed package, dev-only, off
+  by default, and never enabled in production.
 
 ## 7. Environment: no false blockers
 
@@ -166,7 +176,8 @@ layer under test:**
 
 - **Stack fix rounds.** Base each fix round on the previous round's branch, never
   on the original base. Otherwise reviewed fixes silently vanish.
-- **Push approved work promptly** (for example, as a draft PR). Reviewed work
+- **If the profile authorizes pushing, push approved work promptly** (for
+  example, as a draft PR). Reviewed work
   that exists only locally is invisible and at risk. The *merge* waits for the
   gate; the *push* doesn't.
 - **Audit before you say "merged".** List the branches this effort produced that
@@ -188,14 +199,15 @@ layer under test:**
 - **Check that runs are alive.** Background runs die (for example, when a
   session is backgrounded or a machine sleeps), so check before you report
   something as "running".
-- **Keep a `HANDOFF.md` current on long efforts:** state, next steps, where
+- **Keep a `HANDOFF.md` current on long efforts** (template:
+  `templates/HANDOFF.md` next to this file): state, next steps, where
   things are, standing constraints. A fresh session or a new host should be
   able to resume from it alone.
 
 ## 10. Learning from corrections
 
 - When the owner corrects you, or you discover a failure, write a durable note
-  with three parts:
+  (template: `templates/memory-note.md` next to this file) with three parts:
   - **the rule;**
   - **Why:** the incident, in the owner's words if possible;
   - **How to apply:** concretely, where it bites.

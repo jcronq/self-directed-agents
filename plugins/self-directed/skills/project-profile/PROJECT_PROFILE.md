@@ -44,7 +44,7 @@ Authoritative source, if longer: <path>
 ## Off-limits
 - Production / owner services on this machine: <list>
 - Files that are never committed: <secrets, state files, build output>
-- Never: <e.g. modify the owner's working tree, change network routes>
+- Never: <e.g. modify the owner's working tree, change system network config>
 
 ## Integration
 - Target branch and merge procedure: <steps>

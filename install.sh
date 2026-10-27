@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install the self-directed operating manual for one or more agents. Idempotent.
-# Usage: ./install.sh <target>...   targets: claude | codex | project <dir> | plugin
+# Usage: ./install.sh <target>...   targets: claude | codex | project <dir> | plugin | uninstall
 set -euo pipefail
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANUAL="$KIT/AGENTS.md"
@@ -10,7 +10,14 @@ END="<!-- self-directed-agents:end -->"
 add_block() { # file, block-content
   local f="$1" body="$2"
   mkdir -p "$(dirname "$f")"; touch "$f"
-  if grep -qF "$BEGIN" "$f"; then echo "  already present in $f"; return; fi
+  if grep -qF "$BEGIN" "$f"; then
+    # Replace the existing block, so a moved kit updates its path.
+    awk -v b="$BEGIN" -v e="$END" -v body="$body" '
+      $0==b {print; print body; skip=1; next}
+      $0==e {skip=0}
+      !skip {print}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+    echo "  updated in $f"; return
+  fi
   printf '\n%s\n%s\n%s\n' "$BEGIN" "$body" "$END" >> "$f"
   echo "  added to $f"
 }
@@ -28,8 +35,15 @@ while [ $# -gt 0 ]; do
       shift; DIR="${1:?project needs a directory}"
       echo "Project $DIR:"
       [ -e "$DIR/PROJECT_PROFILE.md" ] && echo "  PROJECT_PROFILE.md exists, left alone" || { cp "$KIT/templates/PROJECT_PROFILE.md" "$DIR/PROJECT_PROFILE.md"; echo "  created PROJECT_PROFILE.md (fill it in, or run the project-profile skill)"; }
+      NOTE="Project facts for self-directed work (commands, invariants, environment, off-limits): see PROJECT_PROFILE.md."
+      found=0
       for f in CLAUDE.md AGENTS.md; do
-        [ -e "$DIR/$f" ] && add_block "$DIR/$f" "Project facts for self-directed work (commands, invariants, environment, off-limits): see PROJECT_PROFILE.md."
+        if [ -e "$DIR/$f" ]; then add_block "$DIR/$f" "$NOTE"; found=1; fi
+      done
+      [ $found -eq 0 ] && add_block "$DIR/AGENTS.md" "$NOTE" ;;
+    uninstall) # Remove the blocks this script added to the global files
+      for f in "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md"; do
+        [ -e "$f" ] && grep -qF "$BEGIN" "$f" && { awk -v b="$BEGIN" -v e="$END" '$0==b{skip=1;next} $0==e{skip=0;next} !skip{print}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"; echo "  removed from $f"; }
       done ;;
     plugin)  # Claude Code skills + workflows: install from this repo as a marketplace
       cat <<MSG
