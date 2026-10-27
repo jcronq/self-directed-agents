@@ -1,0 +1,1 @@
+plugins/self-directed/skills/orchestrate/AGENTS.md

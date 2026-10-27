@@ -1,0 +1,1 @@
+../plugins/self-directed/skills/project-profile/PROJECT_PROFILE.md

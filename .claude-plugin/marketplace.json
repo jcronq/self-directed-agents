@@ -1,0 +1,11 @@
+{
+  "name": "self-directed-agents",
+  "owner": { "name": "jcronq" },
+  "plugins": [
+    {
+      "name": "self-directed",
+      "source": "./plugins/self-directed",
+      "description": "Self-directed, test-to-completion agent work: project profiles, reviewed multi-agent builds, and live use-test acceptance gates."
+    }
+  ]
+}
