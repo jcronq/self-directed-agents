@@ -8,11 +8,12 @@ Owned files: {{owned_files}}. Files owned by packages running in parallel (don't
 If you truly need to change a file you don't own, make the smallest change you can and explain it in `unresolved`.
 
 How to work:
-1. Read the relevant code and the profile's architecture invariants.
+1. Read the relevant code and the profile's architecture invariants. Run the existing tests you will rely on first and record the counts in `baseline`, so a later failure is known to be yours or pre-existing.
 2. Test-first. Write tests for each acceptance criterion, run them, and CONFIRM THEY FAIL. Then implement.
 3. Iterate with TARGETED tests.
 4. Run the change LIVE the way the profile describes, through the cheapest real interface for this layer, and keep the evidence.
 5. Run the FULL suite plus the other checks once at the end, and record the counts.
 6. Commit locally with the project's conventions.
 
+Before reporting, confirm yourself that the change does what the brief asked (not just that the steps ran). Record anything the work taught you (a wrong assumption, a trap) in `lessons`.
 Report using the Worker report schema. List every brief item and amendment in `amendments_addressed`.

@@ -48,12 +48,31 @@ Work is done only when **all** of the following hold:
 4. **An independent reviewer approved it** (§5).
 5. **Leftovers are filed** as issues or listed for the owner. Nothing is
    silently dropped.
+6. **You confirmed it yourself before closing:** you checked that the result
+   does what was asked, not just that the steps ran. Ask the owner only when
+   you cannot verify it yourself.
+7. **Lessons are noted:** if the work taught something (a wrong assumption, a
+   trap, a better approach), say it in one line in the report, and make it a
+   durable note (§10) when it will matter again.
 
 "Code written", "tests pass locally" and "PR opened" are milestones, not done.
 
 Scale the gate to the change: a docs-only or config-comment change needs
 review and a check that it renders or parses, not a live use test. Any change
 to behaviour needs the full list.
+
+Scale the process the same way, and reflect at each stage:
+
+- **Scale the process to the request.** A simple request gets minimal scope. A
+  complex one goes through stages: specification (requirements and
+  constraints), design (pseudocode or architecture), then a test-first build,
+  then completion (full tests and docs). Each stage does only its own job:
+  research enumerates what exists (files, configs, tests) without speculating
+  or planning, and implementation does only what was planned.
+- **Reflection checkpoints.** After the requirements, check that the scope is
+  complete. After the design, check it for over-complexity. While building,
+  look for recurring bug patterns. At completion, confirm readiness and note
+  lessons (item 7 above).
 
 ## 3. Evidence standard
 
@@ -70,8 +89,12 @@ to behaviour needs the full list.
 
 ## 4. Verification ladder
 
-Climb it in order. Each rung catches what the one below misses.
+Climb it in order. Rung 0 sets the reference point; each later rung catches
+what the one below misses.
 
+0. **Baseline** before changing anything: run the existing tests you will rely
+   on and record the counts. Then a later failure is known to be yours, not
+   one that was already there.
 1. **Targeted tests** while iterating: the tests you touched plus tests
    importing modules you touched.
 2. **Full suite:** once per unit of work, by the author. (When CI genuinely runs

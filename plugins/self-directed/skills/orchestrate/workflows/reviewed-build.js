@@ -27,9 +27,9 @@ const WORK = { type: 'object', properties: {
   changes: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, what: { type: 'string' } }, required: ['file', 'what'] } },
   tests_added: { type: 'array', items: { type: 'string' } },
   amendments_addressed: { type: 'array', items: { type: 'string' } },
-  full_suite_after: COUNTS, live_verified: { type: 'string' },
-  unresolved: { type: 'array', items: { type: 'string' } } },
-  required: ['branch', 'commit_sha', 'changes', 'tests_added', 'amendments_addressed', 'full_suite_after', 'live_verified', 'unresolved'] }
+  baseline: COUNTS, full_suite_after: COUNTS, live_verified: { type: 'string' },
+  unresolved: { type: 'array', items: { type: 'string' } }, lessons: { type: 'array', items: { type: 'string' } } },
+  required: ['branch', 'commit_sha', 'changes', 'tests_added', 'amendments_addressed', 'baseline', 'full_suite_after', 'live_verified', 'unresolved', 'lessons'] }
 const REVIEW = { type: 'object', properties: {
   approved: { type: 'boolean' },
   problems: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, issue: { type: 'string' } }, required: ['file', 'issue'] } },

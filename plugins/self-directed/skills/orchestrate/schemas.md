@@ -12,9 +12,11 @@ shapes as JSON Schema.
   changes: [{file, what}],
   tests_added: [path::name],          // each must fail on the old code
   amendments_addressed: [string],     // every review problem or brief item, by name
+  baseline: {passed, failed, errors, skipped},           // existing tests BEFORE the change (§4 rung 0)
   full_suite_after: {passed, failed, errors, skipped},   // from THIS run
   live_verified: string,              // what was exercised live, how, and the evidence path
-  unresolved: [string]                // anything not done, out of scope, or needing the owner
+  unresolved: [string],               // anything not done, out of scope, or needing the owner
+  lessons: [string]                   // what the work taught (wrong assumptions, traps); may be empty
 }
 ```
 

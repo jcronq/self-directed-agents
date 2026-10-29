@@ -3,7 +3,7 @@ import fs from 'fs'
 const load = (f) => new Function('args', 'agent', 'phase', `return (async () => {${fs.readFileSync(f, 'utf8').replace(/^export const meta/m, 'const meta')}\n})()`)
 const W = process.argv[2] || new URL("../plugins/self-directed/skills/orchestrate/workflows", import.meta.url).pathname
 const base = { repo: '/r', profile: '/r/P.md', prompts: '/k/prompts', rubric: 'r', gate: 'g' }
-const work = (b) => ({ branch: b, commit_sha: 'abc', changes: [], tests_added: [], amendments_addressed: [], full_suite_after: { passed: 5, failed: 0, errors: 0, skipped: 0 }, live_verified: 'x', unresolved: [] })
+const work = (b) => ({ branch: b, commit_sha: 'abc', changes: [], tests_added: [], amendments_addressed: [], baseline: { passed: 5, failed: 0, errors: 0, skipped: 0 }, full_suite_after: { passed: 5, failed: 0, errors: 0, skipped: 0 }, live_verified: 'x', unresolved: [], lessons: [] })
 const branchOf = (p) => (p.match(/\{\{branch\}\} = (\S+)/) || [])[1]
 const review = (ok) => ({ approved: ok, problems: ok ? [] : [{ file: 'a.py:1', issue: 'bad' }], nits: ['n'], verified: ['ran'], summary: 's' })
 async function scenario(name, file, args, script, check) {
