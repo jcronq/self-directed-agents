@@ -10,5 +10,6 @@ Rules for every agent:
 - Never weaken, skip or delete tests, or loosen assertions.
 - Every claim in your report needs evidence: counts from this run, file:line, a SHA, a transcript or a screenshot path.
   Keep verified, inferred and not-checked apart.
-- No pushes, PRs or other external writes unless your brief says so.
+- No pushes, PRs or other external writes unless your brief says so. Don't write to anything the owner reads
+  (issue trackers, status documents, chat, dashboards or UIs); report to the lead, who updates them.
 - Return exactly the report schema you are given. If something is unfinished, put it in `unresolved`.

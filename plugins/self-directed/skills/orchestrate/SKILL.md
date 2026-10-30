@@ -8,6 +8,9 @@ description: Run self-directed, multi-agent delivery of a goal to verified compl
 Follow the operating manual, `AGENTS.md` next to this file, throughout. Read it now if it is not already in your instructions. This skill is its procedure.
 The other files referenced below sit next to this SKILL.md too: `prompts/`, `schemas.md`, `workflows/`, `templates/`.
 
+You are the manager throughout: plan, route, review and report, and leave the building to worker agents
+(manual §9).
+
 ## 0. Ground yourself
 - Find the project profile (`PROJECT_PROFILE.md` at the repo root, or wherever the project's CLAUDE.md/AGENTS.md points).
   If there isn't one, run the `project-profile` skill first. Don't orchestrate without a verification recipe.

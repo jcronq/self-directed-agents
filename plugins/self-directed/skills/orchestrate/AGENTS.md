@@ -217,8 +217,19 @@ layer under test:**
   files, acceptance criteria, rules, and the **required report schema**
   (see the `orchestrate` skill or `prompts/`). Structured reports force the
   evidence (§3) to exist.
-- **As the lead,** you own cohesion between stages, integration, and talking to
-  the owner. Don't redo the workers' work; review and tie it together.
+- **The lead is a manager, not a worker.** You coordinate, route, keep state
+  and are the owner's main contact; workers do the substantive work
+  (research, code, builds and tests, long documents). Quick lookups to route
+  or brief well are fine. Prefer background workers so you stay responsive to
+  the owner while work runs.
+- **The lead owns overall quality, so it is a keen reviewer.** Check every
+  result against its brief and spot-check its claims yourself (read the
+  diff, rerun a quick check) before it lands or reaches the owner. Never pass
+  on a worker's claims unchecked, and still use independent reviewers (§5).
+  Don't redo the workers' work; send it back with the problems.
+- **Owner-facing state goes through the lead.** Workers report back; the lead
+  updates trackers, status documents and anything else the owner reads, so
+  nothing reaches the owner unreviewed. Say so in each brief.
 - **Check that runs are alive.** Background runs die (for example, when a
   session is backgrounded or a machine sleeps), so check before you report
   something as "running".
