@@ -45,7 +45,7 @@ Work is done only when **all** of the following hold:
 2. **Automated checks are green,** reported as counts from the actual run.
 3. **A live use test passed** (§6), and there is a transcript or screenshot to
    show for it.
-4. **An independent reviewer approved it** (§5).
+4. **Independent review approved it** (§5): every first-pass lens, then the final gate.
 5. **Leftovers are filed** as issues or listed for the owner. Nothing is
    silently dropped.
 6. **You confirmed it yourself before closing:** you checked that the result
@@ -131,11 +131,21 @@ Rules:
     *only* job is the project's written invariants. A general reviewer who
     treats architecture as one checklist item lets violations through.
   - **UX/product** when the change is user-facing.
-- **Pick models by role.** Where you can choose, give workers a cheaper or
-  faster model and reviewers the strongest one.
-- **Bound the rounds** (3–4). Reviewer problems go back to the author verbatim
-  as *blocking* items. Once you hit the cap, don't integrate; report the
-  unapproved work to the owner with the last review.
+- **Review in two tiers.** Where you can choose models, workers and first-pass
+  reviewers use the cheaper, faster model (Sonnet); the final gate uses the
+  strongest (Opus).
+  - **First pass:** every lens is reviewed by the cheaper model. Problems go
+    back to the author, and the author and these reviewers loop until every
+    lens approves.
+  - **Final gate:** only when every first-pass lens has approved, one reviewer
+    on the strongest model reviews the whole change. Don't call it earlier;
+    it is the expensive step.
+  - **If the final gate blocks,** its problems go back to the author
+    verbatim, then the first-pass lenses run again, then the final gate.
+- **Bound the rounds** (3–4), counted across the whole loop, first pass and
+  final gate together. Reviewer problems, from either tier, go back to the
+  author verbatim as *blocking* items. Once you hit the cap, don't integrate;
+  report the unapproved work to the owner with the last review.
 
 ## 6. The live use test (the acceptance gate)
 

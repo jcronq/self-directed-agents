@@ -26,14 +26,18 @@ You are the manager throughout: plan, route, review and report, and leave the bu
 ## 2. Build each package (in parallel waves)
 **With the Workflow tool** (when it exists and the owner opted in; invoking this skill counts as opting in to
 its workflows): run `workflows/reviewed-build.js` once per package, independent packages in parallel, with args
-`{repo, profile, prompts: "<this skill dir>/prompts", id, base, brief, owned_files, others, lenses, ports}`.
+`{repo, profile, prompts: "<this skill dir>/prompts", id, base, brief, owned_files, others, lenses, ports}`
+(optional: `review_model` default `sonnet`, `final_review_model` default `opus`; `reviewer_model` is an alias for the latter).
 Lenses are `general`, `arch`, `ux`; add `"ux"` for anything user-facing. Give each concurrent package a distinct
 port range and scratch dir.
 
 **Without it:** run the same loop by hand with subagents:
 worker (`prompts/_common.md` + `prompts/worker.md`) → reviewers in parallel, one per lens, each in a fresh agent →
 if any review blocks, `prompts/revise.md` with the problems verbatim → repeat, at most 3 rounds.
-Approval requires every lens. Require the schemas in `schemas.md` from every agent and reject reports without counts.
+Review is two-tier: workers and lens reviewers run on Sonnet. Only when every lens approves, one final reviewer
+(`prompts/final-reviewer.md`, Opus) reviews the whole change; if it blocks, its problems go back to the author
+verbatim and the lenses and final gate run again. The 3-round cap covers the whole loop. Approval requires every
+lens and then the final gate. Require the schemas in `schemas.md` from every agent and reject reports without counts.
 
 Never integrate unapproved work. List it for the owner with its last review.
 

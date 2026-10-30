@@ -8,9 +8,10 @@ const branchOf = (p) => (p.match(/\{\{branch\}\} = (\S+)/) || [])[1]
 const review = (ok) => ({ approved: ok, problems: ok ? [] : [{ file: 'a.py:1', issue: 'bad' }], nits: ['n'], verified: ['ran'], summary: 's' })
 async function scenario(name, file, args, script, check) {
   const calls = []
-  const agent = async (prompt, o) => { calls.push(o.label); return script(o.label, prompt, calls) }
+  const models = {}
+  const agent = async (prompt, o) => { calls.push(o.label); models[o.label] = o.model; return script(o.label, prompt, calls, models) }
   const out = await load(file)({ ...base, ...args }, agent, () => {})
-  const ok = check(out, calls)
+  const ok = check(out, calls, models)
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) process.exitCode = 1; if (!ok) console.log(JSON.stringify(out, null, 1), calls)
 }
 const RB = `${W}/reviewed-build.js`, AG = `${W}/acceptance-gate.js`
@@ -25,6 +26,23 @@ await scenario('build: dead worker -> unapproved, no review', RB, { id: 'z', bas
 await scenario('build: one reviewer dies once -> only it is retried', RB, { id: 'q', base: 'main', brief: 'b' },
   (l, p, c) => l.startsWith('work:') ? work(branchOf(p)) : (l === 'arch:q#1' && c.filter(x => x === l).length === 1 ? null : review(true)),
   (o, c) => o.approved && c.filter(x => x === 'general:q#1').length === 1 && c.filter(x => x === 'arch:q#1').length === 2)
+const okRev = (l, p) => l.startsWith('work:') ? work(branchOf(p)) : review(true)
+await scenario('build: lenses approve -> final gate runs on opus, lenses on sonnet', RB, { id: 'f', base: 'main', brief: 'b' },
+  okRev,
+  (o, c, m) => o.approved && o.review_rounds === 1 && c.includes('final:f#1') && c.indexOf('final:f#1') > c.indexOf('arch:f#1')
+    && m['final:f#1'] === 'opus' && m['general:f#1'] === 'sonnet' && m['arch:f#1'] === 'sonnet' && m['work:f'] === 'sonnet')
+await scenario('build: final gate blocks -> revise -> lenses and final run again', RB, { id: 'g', base: 'main', brief: 'b' },
+  (l, p) => { if (l === 'work:g#2') globalThis.fp = p; return l.startsWith('work:') ? work(branchOf(p)) : review(l !== 'final:g#1') },
+  (o, c) => o.approved && o.review_rounds === 2 && o.branch === 'sd/g-r2'
+    && /\{\{problems\}\} = - a\.py:1: \[final\] bad/.test(globalThis.fp)
+    && c.join() === 'work:g,general:g#1,arch:g#1,final:g#1,work:g#2,general:g#2,arch:g#2,final:g#2')
+await scenario('build: no final review while a lens is blocking', RB, { id: 'h', base: 'main', brief: 'b', max_rounds: 1 },
+  (l, p) => l.startsWith('work:') ? work(branchOf(p)) : review(l !== 'arch:h#1'),
+  (o, c) => !o.approved && !c.some(x => x.startsWith('final:')))
+await scenario('build: reviewer_model is a back-compat alias for the final model', RB, { id: 'i', base: 'main', brief: 'b', reviewer_model: 'big' },
+  okRev, (o, c, m) => o.approved && m['final:i#1'] === 'big' && m['general:i#1'] === 'sonnet')
+await scenario('build: review_model and final_review_model override', RB, { id: 'j', base: 'main', brief: 'b', review_model: 'haiku', final_review_model: 'fin', reviewer_model: 'ignored' },
+  okRev, (o, c, m) => m['general:j#1'] === 'haiku' && m['final:j#1'] === 'fin')
 await scenario('build: unknown lens rejected', RB, { id: 'u', base: 'main', brief: 'b', lenses: ['nope'] }, () => null, () => false).catch(e => console.log(/unknown lens/.test(e.message) ? 'PASS build: unknown lens throws' : (process.exitCode = 1, 'FAIL ' + e.message)))
 const areas = [{ key: 'a', focus: 'f', interface: 'browser' }, { key: 'b', focus: 'f', interface: 'api' }]
 await scenario('gate: dead tester blocks a "passed" triage', AG, { branch: 'feat', areas },
@@ -53,3 +71,22 @@ await scenario('gate: a retried worker gets a fresh branch name', AG, { branch: 
     return review(true)
   },
   (o, c) => o.gate_passed && c.includes('work:r1-p1-retry') && o.rounds[0].fixes[0].branch === 'sd/r1-p1-a2')
+await scenario('gate: fix reviews are two-tier (sonnet lenses, then opus final); tester and triage stay opus', AG, { branch: 'feat', areas: [areas[0]] },
+  (l, p) => {
+    if (l.startsWith('test:')) return { area: 'a', actions: 1, works: [], findings: [], verdict: 'ok' }
+    if (l === 'triage#1') return { confirmed: [{ id: 'F1', title: 't', severity: 'major', reproduced: true, root_cause: 'x', repro: 'r' }], rejected: [], fix_packages: [{ id: 'p1', finding_ids: ['F1'], owned_files: ['a.py'], plan: 'p' }], issues_to_file: [], gate_passed: false }
+    if (l.startsWith('triage')) return { confirmed: [], rejected: [], fix_packages: [], issues_to_file: [], gate_passed: true }
+    if (l.startsWith('work:')) return work(branchOf(p))
+    if (l.startsWith('integrate:')) return { branch: branchOf(p), head_sha: 'h', merged: [], full_suite: { passed: 1, failed: 0, errors: 0, skipped: 0 }, summary: 's' }
+    return review(true)
+  },
+  (o, c, m) => o.gate_passed && m['general:r1-p1#1'] === 'sonnet' && m['final:r1-p1#1'] === 'opus' && m['final:int-r1#1'] === 'opus'
+    && c.indexOf('final:r1-p1#1') > c.indexOf('arch:r1-p1#1') && m['test:a#1'] === 'opus' && m['triage#1'] === 'opus')
+await scenario('gate: final gate block blocks the fix package; no final while a lens blocks', AG, { branch: 'feat', areas: [areas[0]], review_rounds: 1 },
+  (l, p) => {
+    if (l.startsWith('test:')) return { area: 'a', actions: 1, works: [], findings: [], verdict: 'ok' }
+    if (l === 'triage#1') return { confirmed: [{ id: 'F1', title: 't', severity: 'major', reproduced: true, root_cause: 'x', repro: 'r' }], rejected: [], fix_packages: [{ id: 'p1', finding_ids: ['F1'], owned_files: ['a.py'], plan: 'p' }], issues_to_file: [], gate_passed: false }
+    if (l.startsWith('work:')) return work(branchOf(p))
+    return review(!l.startsWith('final:'))
+  },
+  (o, c) => !o.gate_passed && o.rounds[0].stopped === 'no fix package was approved' && c.includes('final:r1-p1#1'))

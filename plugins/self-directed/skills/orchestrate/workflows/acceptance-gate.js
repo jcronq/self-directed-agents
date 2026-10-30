@@ -11,7 +11,13 @@ export const meta = {
 //   max_rounds?: 4, review_rounds?: 3,
 //   fix_lenses?: ['general','arch'],           // add 'ux' when fixes are user-facing
 //   ports?: '9200-9999', scratch?: '/tmp/sd-gate',
-//   worker_model?: 'sonnet', reviewer_model?: 'opus', tester_model?: (reviewer_model), project?
+//   worker_model?: 'sonnet',                   // builds, fixes and integrates
+//   review_model?: 'sonnet',                   // first-pass reviews of fix packages and integrations: every lens
+//   final_review_model?: 'opus',               // one whole-change review, only after every lens approves
+//   reviewer_model?,                           // back-compat alias for final_review_model
+//   tester_model?: (final_review_model),       // live use testers: not reviews, so they stay on the strongest model
+//   project?
+// Triage also runs on final_review_model (it reproduces findings and decides the gate).
 // }
 // The workflow never pushes or files issues. It returns issues_to_file and the final branch for the lead.
 const A = args
@@ -21,7 +27,7 @@ if (!Array.isArray(A.areas) || !A.areas.length) throw new Error('areas must be a
 const FIX_LENSES = A.fix_lenses || ['general', 'arch']
 for (const l of FIX_LENSES) if (!ROLE[l]) throw new Error(`unknown lens: ${l}`)
 const MAX = A.max_rounds || 4, REVIEW_ROUNDS = A.review_rounds || 3
-const WORKER = A.worker_model || 'sonnet', REVIEWER = A.reviewer_model || 'opus', TESTER = A.tester_model || REVIEWER
+const WORKER = A.worker_model || 'sonnet', REVIEW_M = A.review_model || 'sonnet', FINAL = A.final_review_model || A.reviewer_model || 'opus', TESTER = A.tester_model || FINAL
 const SEV = ['blocker', 'major', 'minor', 'out_of_scope']
 
 const COUNTS = { type: 'object', properties: { passed: { type: 'integer' }, failed: { type: 'integer' }, errors: { type: 'integer' }, skipped: { type: 'integer' } }, required: ['passed', 'failed', 'errors', 'skipped'] }
@@ -35,7 +41,7 @@ const TRIAGE = { type: 'object', properties: {
   gate_passed: { type: 'boolean' } },
   required: ['confirmed', 'rejected', 'fix_packages', 'issues_to_file', 'gate_passed'] }
 const WORK = { type: 'object', properties: { branch: { type: 'string' }, commit_sha: { type: 'string' }, changes: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, what: { type: 'string' } }, required: ['file', 'what'] } }, tests_added: { type: 'array', items: { type: 'string' } }, amendments_addressed: { type: 'array', items: { type: 'string' } }, baseline: COUNTS, full_suite_after: COUNTS, live_verified: { type: 'string' }, unresolved: { type: 'array', items: { type: 'string' } }, lessons: { type: 'array', items: { type: 'string' } } }, required: ['branch', 'commit_sha', 'changes', 'tests_added', 'amendments_addressed', 'baseline', 'full_suite_after', 'live_verified', 'unresolved', 'lessons'] }
-const REVIEW = { type: 'object', properties: { approved: { type: 'boolean' }, problems: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, issue: { type: 'string' } }, required: ['file', 'issue'] } }, nits: { type: 'array', items: { type: 'string' } }, verified: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } }, required: ['approved', 'problems', 'verified', 'summary'] }
+const REVIEW_SCHEMA = { type: 'object', properties: { approved: { type: 'boolean' }, problems: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, issue: { type: 'string' } }, required: ['file', 'issue'] } }, nits: { type: 'array', items: { type: 'string' } }, verified: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } }, required: ['approved', 'problems', 'verified', 'summary'] }
 const INTEG = { type: 'object', properties: { branch: { type: 'string' }, head_sha: { type: 'string' }, merged: { type: 'array', items: { type: 'string' } }, conflicts_resolved: { type: 'array', items: { type: 'string' } }, full_suite: COUNTS, summary: { type: 'string' } }, required: ['branch', 'head_sha', 'merged', 'full_suite', 'summary'] }
 
 const [P0, P1] = (A.ports || '9200-9999').split('-').map(Number)
@@ -54,16 +60,22 @@ const target = (branch) => `branch ${branch} (check it out in a detached worktre
 const problemsText = (rv) => rv.problems.map(p => `- ${p.file}: ${p.issue}`).join('\n') + `\nReviewer summary: ${rv.summary}`
 const nitsText = (rv) => (rv.nits || []).map(n => `- ${n}`).join('\n') || '(none)'
 
-// work -> review (all lenses must approve) -> revise, bounded. Revisions always build on the previous branch.
+// work -> Sonnet lenses (all must approve) -> Opus final gate -> revise on any block, bounded. Revisions always build on the previous branch.
 async function reviewed(id, phaseName, base, brief, doWork, reviseRole, schema, lenses, extra = {}) {
   let work = await retry(doWork), last = null
   if (!work) return { id, approved: false, work: null, last, note: 'worker failed twice' }
   for (let round = 1; round <= REVIEW_ROUNDS; round++) {
-    const one = (l) => run(ROLE[l], `${l}:${id}#${round}`, phaseName, { id, base, brief, branch: work.branch, report: work }, { schema: REVIEW, model: REVIEWER })
+    const one = (l) => run(ROLE[l], `${l}:${id}#${round}`, phaseName, { id, base, brief, branch: work.branch, report: work }, { schema: REVIEW_SCHEMA, model: REVIEW_M })
     let rs = await Promise.all(lenses.map(one))
     rs = await Promise.all(rs.map((r, i) => r || one(lenses[i])))
     if (rs.some(r => !r)) return { id, approved: false, work, last, note: `round ${round}: reviewers failed twice` }
     last = { approved: rs.every(r => r.approved), problems: rs.flatMap((r, i) => r.problems.map(p => ({ ...p, issue: `[${lenses[i]}] ${p.issue}` }))), nits: rs.flatMap(r => r.nits || []), summary: rs.map((r, i) => `${lenses[i]}: ${r.summary}`).join('\n') }
+    if (last.approved) { // final gate: only after every lens approves
+      const finalArgs = { id, base, brief, branch: work.branch, report: work, lens_summary: last.summary }
+      const fin = await retry((n) => run('final-reviewer.md', `final:${id}#${round}${n > 1 ? '-retry' : ''}`, phaseName, finalArgs, { schema: REVIEW_SCHEMA, model: FINAL }))
+      if (!fin) return { id, approved: false, work, last, note: `round ${round}: final reviewer failed twice` }
+      last = { approved: fin.approved, problems: fin.problems.map(p => ({ ...p, issue: `[final] ${p.issue}` })), nits: [...last.nits, ...(fin.nits || [])], summary: `${last.summary}\nfinal: ${fin.summary}` }
+    }
     if (last.approved) return { id, approved: true, work, last }
     if (round === REVIEW_ROUNDS) break
     const next = await retry((n) => run(reviseRole, `work:${id}#${round + 1}${n > 1 ? '-retry' : ''}`, phaseName,
@@ -91,7 +103,7 @@ for (let round = 1; round <= MAX && !passed; round++) {
   phase('Triage')
   const tri = await retry((n) => run('triage.md', `triage#${round}${n > 1 ? '-retry' : ''}`, 'Triage',
     { round, reports, previously_fixed: fixed, target: target(branch), missing_areas: missing.length ? `${missing.join(', ')}: their testers FAILED; that coverage is missing` : '(none)' },
-    { schema: TRIAGE, model: REVIEWER }))
+    { schema: TRIAGE, model: FINAL }))
   if (!tri) { entry.error = 'triage failed twice'; break }
   issues.push(...tri.issues_to_file)
   Object.assign(entry, { confirmed: tri.confirmed.length, rejected: tri.rejected.length, packages: tri.fix_packages.length, triage_gate: tri.gate_passed })

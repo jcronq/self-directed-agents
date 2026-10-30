@@ -21,6 +21,7 @@ shapes as JSON Schema.
 ```
 
 ## Review
+Used by every reviewer, first-pass lenses and the final gate alike.
 ```
 {
   approved: bool,                     // true only if no material problem remains

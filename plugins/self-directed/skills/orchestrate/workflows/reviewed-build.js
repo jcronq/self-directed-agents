@@ -11,15 +11,22 @@ export const meta = {
 //   max_rounds?: 3,
 //   ports?: '9200-9999',               // give each concurrent run its own range
 //   scratch?: '/tmp/sd',               // each agent gets <scratch>/<id>/<label>
-//   worker_model?: 'sonnet', reviewer_model?: 'opus', project?: ''
+//   worker_model?: 'sonnet',           // builds and revises
+//   review_model?: 'sonnet',           // first pass: every lens
+//   final_review_model?: 'opus',       // final gate: one whole-change review, only after every lens approves
+//   reviewer_model?,                   // back-compat alias for final_review_model
+//   project?: ''
 // }
+// Review is two-tier. Lenses run on review_model; a block goes back to the author. Only when every lens approves
+// does one final reviewer (final_review_model) review the whole change. A final block also goes back to the
+// author, then lenses and the final gate run again. max_rounds bounds the whole loop.
 const A = args
 const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md' }
 const LENSES = A.lenses || ['general', 'arch']
 for (const k of ['repo', 'profile', 'prompts', 'id', 'base', 'brief']) if (!A[k]) throw new Error(`missing arg: ${k}`)
 for (const l of LENSES) if (!ROLE[l]) throw new Error(`unknown lens: ${l} (use ${Object.keys(ROLE).join(', ')})`)
 const MAX = A.max_rounds || 3
-const WORKER = A.worker_model || 'sonnet', REVIEWER = A.reviewer_model || 'opus'
+const WORKER = A.worker_model || 'sonnet', REVIEW = A.review_model || 'sonnet', FINAL = A.final_review_model || A.reviewer_model || 'opus'
 
 const COUNTS = { type: 'object', properties: { passed: { type: 'integer' }, failed: { type: 'integer' }, errors: { type: 'integer' }, skipped: { type: 'integer' } }, required: ['passed', 'failed', 'errors', 'skipped'] }
 const WORK = { type: 'object', properties: {
@@ -30,7 +37,7 @@ const WORK = { type: 'object', properties: {
   baseline: COUNTS, full_suite_after: COUNTS, live_verified: { type: 'string' },
   unresolved: { type: 'array', items: { type: 'string' } }, lessons: { type: 'array', items: { type: 'string' } } },
   required: ['branch', 'commit_sha', 'changes', 'tests_added', 'amendments_addressed', 'baseline', 'full_suite_after', 'live_verified', 'unresolved', 'lessons'] }
-const REVIEW = { type: 'object', properties: {
+const REVIEW_SCHEMA = { type: 'object', properties: {
   approved: { type: 'boolean' },
   problems: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, issue: { type: 'string' } }, required: ['file', 'issue'] } },
   nits: { type: 'array', items: { type: 'string' } },
@@ -59,15 +66,26 @@ const problemsText = (rv) => rv.problems.map(p => `- ${p.file}: ${p.issue}`).joi
 const nitsText = (rv) => (rv.nits || []).map(n => `- ${n}`).join('\n') || '(none)'
 
 async function review(work, round) {
-  const one = (l) => run(ROLE[l], `${l}:${A.id}#${round}`, { branch: work.branch, report: work }, { schema: REVIEW, model: REVIEWER })
+  const one = (l) => run(ROLE[l], `${l}:${A.id}#${round}`, { branch: work.branch, report: work }, { schema: REVIEW_SCHEMA, model: REVIEW })
   let rs = await Promise.all(LENSES.map(one))
   rs = await Promise.all(rs.map((r, i) => r || one(LENSES[i]))) // retry only the reviewers that died
   if (rs.some(r => !r)) return null
-  return {
+  const lenses = {
     approved: rs.every(r => r.approved),
     problems: rs.flatMap((r, i) => r.problems.map(p => ({ ...p, issue: `[${LENSES[i]}] ${p.issue}` }))),
     nits: rs.flatMap(r => r.nits || []),
     summary: rs.map((r, i) => `${LENSES[i]}: ${r.summary}`).join('\n'),
+  }
+  if (!lenses.approved) return lenses
+  // Final gate: runs only once every lens has approved.
+  const fin = (await run('final-reviewer.md', `final:${A.id}#${round}`, { branch: work.branch, report: work, lens_summary: lenses.summary }, { schema: REVIEW_SCHEMA, model: FINAL }))
+    || (await run('final-reviewer.md', `final:${A.id}#${round}-retry`, { branch: work.branch, report: work, lens_summary: lenses.summary }, { schema: REVIEW_SCHEMA, model: FINAL }))
+  if (!fin) return null
+  return {
+    approved: fin.approved,
+    problems: fin.problems.map(p => ({ ...p, issue: `[final] ${p.issue}` })),
+    nits: [...lenses.nits, ...(fin.nits || [])],
+    summary: `${lenses.summary}\nfinal: ${fin.summary}`,
   }
 }
 

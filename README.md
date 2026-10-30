@@ -12,7 +12,7 @@ It came down to five habits:
 2. **Reports that force evidence.** "Done" requires test counts from this run, a live check and SHAs. A green
    CI that ran zero tests counts as nothing.
 3. **Review by someone other than the author,** split by lens (correctness, architecture invariants, UX), with
-   bounded revise rounds and no integration of unapproved work.
+   a cheap first pass then a strongest-model final gate, bounded revise rounds, and no integration of unapproved work.
 4. **A live use test as the acceptance gate.** Agents use the running product through its real interface:
    a browser for UIs, real requests for APIs, the shell for CLIs. Findings need repros, and the gate has an
    explicit rule for when to stop.
@@ -26,7 +26,7 @@ It came down to five habits:
 | `AGENTS.md` | The operating manual: how to work. Short, generic, no project facts | Any agent |
 | `templates/PROJECT_PROFILE.md` | Per-repo facts: verification recipe, use-test interface, invariants, environment, off-limits | Any agent |
 | `templates/HANDOFF.md`, `templates/memory-note.md` | Resume a long effort on a fresh session or host; record a correction | Any agent |
-| `prompts/` + `schemas.md` | Role prompts (worker, reviewers, use tester, triage, integrator) and the report schemas | Any orchestrator, or by hand |
+| `prompts/` + `schemas.md` | Role prompts (worker, lens reviewers, final reviewer, use tester, triage, integrator) and the report schemas | Any orchestrator, or by hand |
 | `plugins/self-directed/` | Claude Code plugin: `orchestrate` and `project-profile` skills, plus two Workflow scripts (`reviewed-build`, `acceptance-gate`) | Claude Code |
 | `tests/workflows.test.mjs` | Control-flow tests for the Workflow scripts with a mocked `agent()` (`node tests/workflows.test.mjs`) | Node |
 | `extras/stop-evidence-hook/` | Optional Stop hook that bounces "done" claims made without evidence | Claude Code |
