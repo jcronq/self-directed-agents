@@ -224,12 +224,15 @@ layer under test:**
   the owner while work runs.
 - **The lead owns overall quality, so it is a keen reviewer.** Check every
   result against its brief and spot-check its claims yourself (read the
-  diff, rerun a quick check) before it lands or reaches the owner. Never pass
-  on a worker's claims unchecked, and still use independent reviewers (§5).
+  diff, rerun a quick check, never a full suite) before it lands or reaches
+  the owner. Never pass on a worker's claims unchecked, and still use
+  independent reviewers (§5).
   Don't redo the workers' work; send it back with the problems.
-- **Owner-facing state goes through the lead.** Workers report back; the lead
-  updates trackers, status documents and anything else the owner reads, so
-  nothing reaches the owner unreviewed. Say so in each brief.
+- **Status channels go through the lead.** Workers report back; the lead
+  updates trackers, status documents and chat, so the owner hears one
+  consistent voice and every result is checked before it reaches them. Say
+  so in each brief. Deliverables (documents, PRs) are still written by
+  workers and reviewed under §5.
 - **Check that runs are alive.** Background runs die (for example, when a
   session is backgrounded or a machine sleeps), so check before you report
   something as "running".

@@ -11,7 +11,7 @@ async function scenario(name, file, args, script, check) {
   const agent = async (prompt, o) => { calls.push(o.label); return script(o.label, prompt, calls) }
   const out = await load(file)({ ...base, ...args }, agent, () => {})
   const ok = check(out, calls)
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) console.log(JSON.stringify(out, null, 1), calls)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) process.exitCode = 1; if (!ok) console.log(JSON.stringify(out, null, 1), calls)
 }
 const RB = `${W}/reviewed-build.js`, AG = `${W}/acceptance-gate.js`
 await scenario('build: arch rejects then approves; revision chains', RB, { id: 'x', base: 'main', brief: 'b' },
@@ -25,7 +25,7 @@ await scenario('build: dead worker -> unapproved, no review', RB, { id: 'z', bas
 await scenario('build: one reviewer dies once -> only it is retried', RB, { id: 'q', base: 'main', brief: 'b' },
   (l, p, c) => l.startsWith('work:') ? work(branchOf(p)) : (l === 'arch:q#1' && c.filter(x => x === l).length === 1 ? null : review(true)),
   (o, c) => o.approved && c.filter(x => x === 'general:q#1').length === 1 && c.filter(x => x === 'arch:q#1').length === 2)
-await scenario('build: unknown lens rejected', RB, { id: 'u', base: 'main', brief: 'b', lenses: ['nope'] }, () => null, () => true).catch(e => console.log(/unknown lens/.test(e.message) ? 'PASS build: unknown lens throws' : 'FAIL ' + e.message))
+await scenario('build: unknown lens rejected', RB, { id: 'u', base: 'main', brief: 'b', lenses: ['nope'] }, () => null, () => true).catch(e => console.log(/unknown lens/.test(e.message) ? 'PASS build: unknown lens throws' : (process.exitCode = 1, 'FAIL ' + e.message)))
 const areas = [{ key: 'a', focus: 'f', interface: 'browser' }, { key: 'b', focus: 'f', interface: 'api' }]
 await scenario('gate: dead tester blocks a "passed" triage', AG, { branch: 'feat', areas },
   (l) => l.startsWith('test:b') ? null : l.startsWith('test:') ? { area: 'a', actions: 3, works: [], findings: [], verdict: 'ok' }
