@@ -80,7 +80,7 @@ async function review(work, round) {
   // Final gate: runs only once every lens has approved.
   const fin = (await run('final-reviewer.md', `final:${A.id}#${round}`, { branch: work.branch, report: work, lens_summary: lenses.summary }, { schema: REVIEW_SCHEMA, model: FINAL }))
     || (await run('final-reviewer.md', `final:${A.id}#${round}-retry`, { branch: work.branch, report: work, lens_summary: lenses.summary }, { schema: REVIEW_SCHEMA, model: FINAL }))
-  if (!fin) return null
+  if (!fin) return { ...lenses, approved: false, final_failed: true } // keep the lens results as last_review
   return {
     approved: fin.approved,
     problems: fin.problems.map(p => ({ ...p, issue: `[final] ${p.issue}` })),
@@ -99,6 +99,7 @@ for (let round = 1; work && round <= MAX; round++) {
   const rv = await review(work, round)
   if (!rv) { notes.push(`round ${round}: reviewers failed twice`); break }
   history.push(rv)
+  if (rv.final_failed) { notes.push(`round ${round}: final reviewer failed twice`); break }
   if (rv.approved) { approved = true; break }
   if (round === MAX) break
   const revArgs = { round: round + 1, branch: `sd/${A.id}-r${round + 1}`, previous_branch: work.branch, previous_report: work, problems: problemsText(rv), nits: nitsText(rv) }
