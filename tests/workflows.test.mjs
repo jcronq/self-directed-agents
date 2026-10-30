@@ -142,5 +142,5 @@ await scenario('gate: final agent dies twice -> package unapproved with note', A
     if (l.startsWith('final:r1-p1')) return null
     return review(true)
   },
-  (o, c) => !o.gate_passed && o.rounds[0].stopped === 'no fix package was approved' && o.rounds[0].fixes[0].note === 'round 1: final reviewer failed twice'
+  (o, c) => !o.gate_passed && o.rounds[0].stopped === 'no fix package was approved' && o.rounds[0].fixes[0].note === 'round 1: final reviewer failed twice' && o.rounds[0].fixes[0].last_review?.approved === false && /general: s/.test(o.rounds[0].fixes[0].last_review.summary)
     && c.filter(x => x.startsWith('final:r1-p1')).length === 2)

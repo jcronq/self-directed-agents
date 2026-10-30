@@ -1,6 +1,6 @@
 export const meta = {
   name: 'reviewed-build',
-  description: 'Build one package test-first; independent reviewers (correctness, architecture, optional UX) gate it in bounded revise rounds',
+  description: 'Build one package test-first; independent reviewers (correctness, architecture, optional UX) gate it, then a final reviewer on the strongest model, in bounded revise rounds',
   phases: [{ title: 'Build' }],
 }
 // args: {

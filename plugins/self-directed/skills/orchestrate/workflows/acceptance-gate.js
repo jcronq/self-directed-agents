@@ -73,7 +73,7 @@ async function reviewed(id, phaseName, base, brief, doWork, reviseRole, schema, 
     if (last.approved) { // final gate: only after every lens approves
       const finalArgs = { id, base, brief, branch: work.branch, report: work, lens_summary: last.summary }
       const fin = await retry((n) => run('final-reviewer.md', `final:${id}#${round}${n > 1 ? '-retry' : ''}`, phaseName, finalArgs, { schema: REVIEW_SCHEMA, model: FINAL }))
-      if (!fin) return { id, approved: false, work, last, note: `round ${round}: final reviewer failed twice` }
+      if (!fin) return { id, approved: false, work, last: { ...last, approved: false }, note: `round ${round}: final reviewer failed twice` }
       last = { approved: fin.approved, problems: fin.problems.map(p => ({ ...p, issue: `[final] ${p.issue}` })), nits: [...last.nits, ...(fin.nits || [])], summary: `${last.summary}\nfinal: ${fin.summary}` }
     }
     if (last.approved) return { id, approved: true, work, last }

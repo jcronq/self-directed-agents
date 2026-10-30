@@ -34,6 +34,8 @@ It came down to five habits:
 `AGENTS.md`, `prompts/`, `schemas.md` and the files in `templates/` are symlinks into the plugin, so
 there's one copy of each. On Windows, clone with `core.symlinks=true`.
 
+`reviewer_model` now sets only the final gate; set `review_model` to put the lens reviewers on a stronger model.
+
 ## Install
 
 ```bash
