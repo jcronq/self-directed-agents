@@ -119,9 +119,9 @@ Rules:
 - **A green suite does not mean the product works.** A large suite passing
   while the first live run hangs the server is a common outcome, not a rare
   one. That's why rungs 3–4 exist.
-- **Be cost-aware.** Don't make five agents each run a long suite. Run
-  tests in parallel, use targeted runs for reviewers, and do one full run per
-  round.
+- **Be cost-aware.** Don't make five agents each run a long suite. Use
+  parallel test workers within a run, targeted runs for reviewers, and one
+  full run per round, all under the heavy-job cap (§9).
 
 ## 5. Independent review
 
@@ -215,7 +215,7 @@ layer under test:**
 - **Never touch production** or the owner's running services unless explicitly
   asked.
 - **Respect shared machines:** use `nice`, cap parallelism, and leave headroom
-  for the owner.
+  for the owner. Run heavy jobs through `heavy` (the cap in §9).
 
 ## 8. Integration hygiene
 
@@ -280,7 +280,18 @@ nothing gets reviewed until everything is built.
   sets the finish time. Report that plan to the owner up front. Put the
   longest chain first and split it if it dominates.
 - **Cost and pressure limits.** Cap concurrency by CPU count and leave
-  headroom for the owner on a shared machine (§7); queue the rest. Keep the
+  headroom for the owner on a shared machine (§7); queue the rest. Agents are
+  cheap to run in parallel; heavy jobs are not. Heavy jobs are full suites,
+  builds, browser runs, dependency installs, and dev servers or app
+  instances, whoever runs them (workers, reviewers, QA, the integrator). Allow
+  at most two at once across the whole organization, or fewer if the CPU
+  count says so. Enforce it rather than ask for it: every heavy job runs
+  through `scripts/heavy.sh` (`heavy <command>`), which holds one of two
+  machine-wide slots and runs the job under `nice -n 10`; the rest queue.
+  Every brief says so. Packages still launch together: only their heavy jobs
+  queue. Reading, editing and reviewing code stay fully parallel. Too many
+  heavy jobs at once can swap a machine until the owner's own apps are
+  killed. Keep the
   two-tier review order (§5): parallelism is *within* a tier (all lenses at
   once, all packages at once), never by calling the final gate early. When the
   owner has opted into workflows, prefer a workflow script over launching

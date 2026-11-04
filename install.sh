@@ -25,12 +25,21 @@ add_block() { # file, block-content
   echo "  added to $f"
 }
 
+link_heavy() { # Put the machine-wide heavy-job cap (AGENTS.md §9) on PATH as `heavy`.
+  local bin="$HOME/.local/bin"
+  mkdir -p "$bin"
+  ln -sf "$KIT/plugins/self-directed/skills/orchestrate/scripts/heavy.sh" "$bin/heavy"
+  echo "  linked $bin/heavy"
+  case ":$PATH:" in *":$bin:"*) ;; *) echo "  NOTE: add $bin to PATH so agents can run \`heavy\`." ;; esac
+}
+
 [ $# -eq 0 ] && { sed -n '2,3p' "$0"; exit 1; }
 while [ $# -gt 0 ]; do
   case "$1" in
     claude)  # Claude Code: import the manual into the user-level CLAUDE.md (no account features needed)
       echo "Claude Code (global):"
-      add_block "$HOME/.claude/CLAUDE.md" "@$MANUAL" ;;
+      add_block "$HOME/.claude/CLAUDE.md" "@$MANUAL"
+      link_heavy ;;
     codex)   # Codex CLI and other AGENTS.md readers: no import syntax, so reference by absolute path
       echo "Codex (global):"
       add_block "$HOME/.codex/AGENTS.md" "Follow the operating manual at $MANUAL for all self-directed work. Read it at the start of every task." ;;
