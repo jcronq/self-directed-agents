@@ -9,6 +9,8 @@ export const meta = {
 //   rubric, gate,                              // severity rubric and gate rule (text)
 //   start_cmd?,                                // how testers start the system (default: the profile's "Run live")
 //   max_rounds?: 4, review_rounds?: 3,
+//   final_gate?: 'package',                    // fix packages: 'package' (default) gives each its own final review; 'none' ends
+//                                              // each at first-pass approval. The integrated branch always gets the one final gate
 //   fix_lenses?: ['general','arch'],           // add 'ux' when fixes are user-facing
 //   ports?: '9200-9999', scratch?: '/tmp/sd-gate',
 //   worker_model?: 'sonnet',                   // builds, fixes and integrates
@@ -26,6 +28,8 @@ for (const k of ['repo', 'profile', 'prompts', 'branch', 'rubric', 'gate']) if (
 if (!Array.isArray(A.areas) || !A.areas.length) throw new Error('areas must be a non-empty array of {key, focus, interface}')
 const FIX_LENSES = A.fix_lenses || ['general', 'arch']
 for (const l of FIX_LENSES) if (!ROLE[l]) throw new Error(`unknown lens: ${l}`)
+const FINAL_GATE = A.final_gate || 'package'
+if (!['package', 'none'].includes(FINAL_GATE)) throw new Error(`unknown final_gate: ${FINAL_GATE} (use package, none)`)
 const MAX = A.max_rounds || 4, REVIEW_ROUNDS = A.review_rounds || 3
 const WORKER = A.worker_model || 'sonnet', REVIEW_M = A.review_model || 'sonnet', FINAL = A.final_review_model || A.reviewer_model || 'opus', TESTER = A.tester_model || FINAL
 const SEV = ['blocker', 'major', 'minor', 'out_of_scope']
@@ -61,7 +65,7 @@ const problemsText = (rv) => rv.problems.map(p => `- ${p.file}: ${p.issue}`).joi
 const nitsText = (rv) => (rv.nits || []).map(n => `- ${n}`).join('\n') || '(none)'
 
 // work -> Sonnet lenses (all must approve) -> Opus final gate -> revise on any block, bounded. Revisions always build on the previous branch.
-async function reviewed(id, phaseName, base, brief, doWork, reviseRole, schema, lenses, extra = {}) {
+async function reviewed(id, phaseName, base, brief, doWork, reviseRole, schema, lenses, extra = {}, finalGate = 'package') {
   let work = await retry(doWork), last = null
   if (!work) return { id, approved: false, work: null, last, note: 'worker failed twice' }
   for (let round = 1; round <= REVIEW_ROUNDS; round++) {
@@ -70,7 +74,7 @@ async function reviewed(id, phaseName, base, brief, doWork, reviseRole, schema, 
     rs = await Promise.all(rs.map((r, i) => r || one(lenses[i])))
     if (rs.some(r => !r)) return { id, approved: false, work, last, note: `round ${round}: reviewers failed twice` }
     last = { approved: rs.every(r => r.approved), problems: rs.flatMap((r, i) => r.problems.map(p => ({ ...p, issue: `[${lenses[i]}] ${p.issue}` }))), nits: rs.flatMap(r => r.nits || []), summary: rs.map((r, i) => `${lenses[i]}: ${r.summary}`).join('\n') }
-    if (last.approved) { // final gate: only after every lens approves
+    if (last.approved && finalGate === 'package') { // final gate: only after every lens approves
       const finalArgs = { id, base, brief, branch: work.branch, report: work, lens_summary: last.summary }
       const fin = await retry((n) => run('final-reviewer.md', `final:${id}#${round}${n > 1 ? '-retry' : ''}`, phaseName, finalArgs, { schema: REVIEW_SCHEMA, model: FINAL }))
       if (!fin) return { id, approved: false, work, last: { ...last, approved: false }, note: `round ${round}: final reviewer failed twice` }
@@ -121,7 +125,7 @@ for (let round = 1; round <= MAX && !passed; round++) {
     return reviewed(id, 'Fix', branch, brief,
       (n) => run('worker.md', `work:${id}${n > 1 ? '-retry' : ''}`, 'Fix', { id, base: branch, brief, branch: att(`sd/${id}`, n), owned_files: p.owned_files.join(', '), others: others.join(', ') || '(none)' },
         { schema: WORK, model: WORKER, isolation: 'worktree' }),
-      'revise.md', WORK, FIX_LENSES).then(r => ({ ...r, finding_ids: p.finding_ids }))
+      'revise.md', WORK, FIX_LENSES, {}, FINAL_GATE).then(r => ({ ...r, finding_ids: p.finding_ids }))
   }))
   entry.fixes = results.map(r => ({ id: r.id, approved: r.approved, branch: r.work?.branch, note: r.note, last_review: r.approved ? undefined : r.last }))
   const ok = results.filter(r => r.approved)

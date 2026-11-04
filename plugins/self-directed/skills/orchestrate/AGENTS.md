@@ -94,13 +94,18 @@ Scale the process the same way, and reflect at each stage:
 Climb it in order. Rung 0 sets the reference point; each later rung catches
 what the one below misses.
 
+A **round** is one integration pass: packages are built and reviewed, merged
+by the integrator, and the merged result is checked once. Fix work after a
+review or a live-use test starts a new round.
+
 0. **Baseline** before changing anything: run the existing tests you will rely
    on and record the counts. Then a later failure is known to be yours, not
    one that was already there.
 1. **Targeted tests** while iterating: the tests you touched plus tests
    importing modules you touched. Never the full suite on every iteration.
-2. **Full suite:** once per round. A package worker runs it once, at the end of
-   its package; the integrator runs it once on the merged result (§9). (When CI
+2. **Full suite:** once per round. Each package worker (or reviser) runs it
+   once, at the end of its package for that round; the integrator runs it once
+   on the merged result (§9). Nobody re-runs it beyond that. (When CI
    genuinely runs the suite, CI is the authoritative full run; don't repeat it
    in every agent.)
 3. **Live run:** start the real system and exercise the change.
@@ -143,11 +148,14 @@ Rules:
     lens approves.
   - **Final gate:** only when every first-pass lens has approved, one reviewer
     on the strongest model reviews the whole change. Don't call it earlier;
-    it is the expensive step.
+    it is the expensive step. With several packages, each package gets
+    first-pass review only, and the one final gate runs on the integrated
+    result (§9). For a single-package effort, that package's gate is the
+    integrated gate.
   - **If the final gate blocks,** its problems go back to the author
     verbatim, then the first-pass lenses run again, then the final gate.
-- **Bound the rounds** (3–4), counted across the whole loop, first pass and
-  final gate together. Reviewer problems, from either tier, go back to the
+- **Bound the rounds** (3–4), counted per package across its whole loop,
+  first pass and final gate together. Reviewer problems, from either tier, go back to the
   author verbatim as *blocking* items. Once you hit the cap, don't integrate;
   report the unapproved work to the owner with the last review.
 
@@ -234,10 +242,11 @@ nothing gets reviewed until everything is built.
   - **Lead/manager:** plans, routes, keeps state, reports to the owner.
   - **Architect:** fixes the design, shared interfaces and file ownership.
   - **Package workers:** one per package.
-  - **Per-package reviewers:** one per lens (§5).
+  - **Per-package reviewers:** one per lens (§5), first pass only.
   - **Integrator:** merges approved packages and runs the full suite.
   - **Live-use tester:** exercises the integrated product (§6).
-  - **Final gate:** one reviewer on the strongest model.
+  - **Final gate:** one reviewer on the strongest model, run once on the
+    integrated result.
 
   Workers and first-pass reviewers run on the cheaper model (Sonnet); only the
   final gate runs on the strongest (Opus).
@@ -259,8 +268,10 @@ nothing gets reviewed until everything is built.
 - **Review as a pipeline.** A package goes to its first-pass reviewers the
   moment it is done, while other packages are still building. Fix rounds stay
   per package: a finding in one package doesn't hold up or re-open the others.
-  The final gate runs once, on the integrated result. Reviewer rounds count
-  per package (§5).
+  Packages end at first-pass approval; the one final gate runs on the
+  integrated result, not per package. (A single-package effort has one
+  package, so its gate is the integrated gate.) Review rounds count per
+  package, across its whole loop (§5).
 - **An integrator merges packages.** It takes approved packages as they
   land, resolves conflicts so both sides' intent is kept, and runs the one
   full suite per round (§4). Workers and reviewers don't re-run it.
@@ -272,8 +283,10 @@ nothing gets reviewed until everything is built.
   headroom for the owner on a shared machine (§7); queue the rest. Keep the
   two-tier review order (§5): parallelism is *within* a tier (all lenses at
   once, all packages at once), never by calling the final gate early. When the
-  owner has opted into workflows, prefer a workflow script's `pipeline()` for
-  deterministic fan-out over launching agents ad hoc.
+  owner has opted into workflows, prefer a workflow script over launching
+  agents ad hoc: `parallel()` for independent packages, and `pipeline()` to
+  chain build, review and merge per package. The shipped `reviewed-build.js`
+  doesn't use `pipeline()` yet; the lead runs it once per package, concurrently.
 - **The lead is a manager, not a worker.** You coordinate, route, keep state
   and are the owner's main contact; workers do the substantive work
   (research, code, builds and tests, long documents). Quick lookups to route

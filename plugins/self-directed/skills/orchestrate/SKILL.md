@@ -32,7 +32,10 @@ You are the manager throughout: plan, route, review and report, and leave the bu
 **With the Workflow tool** (when it exists and the owner opted in; invoking this skill counts as opting in to
 its workflows): run `workflows/reviewed-build.js` once per package, independent packages in parallel, with args
 `{repo, profile, prompts: "<this skill dir>/prompts", id, base, brief, owned_files, others, consumes, provides, lenses, ports}`
-(optional: `review_model` default `sonnet`, `final_review_model` default `opus`; `reviewer_model` is an alias for the latter).
+(optional: `final_gate` `"package"` (default) or `"none"`; `review_model` default `sonnet`, `final_review_model` default `opus`; `reviewer_model` is an alias for the latter).
+For an organization (more than one package) set `final_gate: "none"`: each package's loop ends at first-pass
+approval, and the one Opus final gate runs on the integrated result (step 3). A single package keeps `"package"`;
+that gate is the integrated gate.
 Each package reviews itself the moment its build finishes, while other packages are still building; don't wait for all
 builds. Don't run the full suite in every agent: workers run targeted tests while iterating and one full run at the end;
 the integrator runs the one full suite per round. Cap concurrent packages by CPU count.
@@ -43,7 +46,7 @@ port range and scratch dir.
 worker (`prompts/_common.md` + `prompts/worker.md`) → reviewers in parallel, one per lens, each in a fresh agent →
 if any review blocks, `prompts/revise.md` with the problems verbatim → repeat, at most 3 rounds.
 Review is two-tier: workers and lens reviewers run on Sonnet. Only when every lens approves, one final reviewer
-(`prompts/final-reviewer.md`, Opus) reviews the whole change; if it blocks, its problems go back to the author
+(`prompts/final-reviewer.md`, Opus) reviews the whole change (for an organization, the integrated result, not each package); if it blocks, its problems go back to the author
 verbatim and the lenses and final gate run again. The 3-round cap covers the whole loop. Approval requires every
 lens and then the final gate. Require the schemas in `schemas.md` from every agent and reject reports without counts.
 
@@ -51,7 +54,9 @@ Never integrate unapproved work. List it for the owner with its last review.
 
 ## 3. Integrate
 `prompts/integrator.md` merges approved branches into one integration branch as they land, runs the one full suite,
-followed by a general review. The final gate runs once, on this integrated result.
+followed by the lens reviews. Then the one final gate (`prompts/final-reviewer.md`, Opus) runs once, on this integrated
+result. In `acceptance-gate.js`, pass `final_gate: "none"` so fix packages end at first-pass approval; the integrated
+branch always gets the final gate.
 Push it right away as a draft PR if the profile allows pushing. The push doesn't wait for the gate; the merge does.
 
 ## 4. Live use test (the acceptance gate)

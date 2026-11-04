@@ -16,10 +16,14 @@ export const meta = {
 //   review_model?: 'sonnet',           // first pass: every lens
 //   final_review_model?: 'opus',       // final gate: one whole-change review, only after every lens approves
 //   reviewer_model?,                   // back-compat alias for final_review_model
+//   final_gate?: 'package',            // 'package' (default): this package gets its own final review.
+//                                      // 'none': the loop ends at first-pass approval; the lead runs the one final gate
+//                                      // on the integrated result (organization runs; see manual §9)
 //   project?: ''
 // }
 // One run is one package. Run it once per package, concurrently: each package reviews itself as soon as its build
 // finishes, so review is already a pipeline across packages and never waits for the other builds.
+// Review is two-tier; with final_gate 'none' only the first tier runs here and the final gate moves to the integrated result.
 // Review is two-tier. Lenses run on review_model; a block goes back to the author. Only when every lens approves
 // does one final reviewer (final_review_model) review the whole change. A final block also goes back to the
 // author, then lenses and the final gate run again. max_rounds bounds the whole loop.
@@ -28,6 +32,8 @@ const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux
 const LENSES = A.lenses || ['general', 'arch']
 for (const k of ['repo', 'profile', 'prompts', 'id', 'base', 'brief']) if (!A[k]) throw new Error(`missing arg: ${k}`)
 for (const l of LENSES) if (!ROLE[l]) throw new Error(`unknown lens: ${l} (use ${Object.keys(ROLE).join(', ')})`)
+const FINAL_GATE = A.final_gate || 'package'
+if (!['package', 'none'].includes(FINAL_GATE)) throw new Error(`unknown final_gate: ${FINAL_GATE} (use package, none)`)
 const MAX = A.max_rounds || 3
 const WORKER = A.worker_model || 'sonnet', REVIEW = A.review_model || 'sonnet', FINAL = A.final_review_model || A.reviewer_model || 'opus'
 
@@ -80,7 +86,7 @@ async function review(work, round) {
     nits: rs.flatMap(r => r.nits || []),
     summary: rs.map((r, i) => `${LENSES[i]}: ${r.summary}`).join('\n'),
   }
-  if (!lenses.approved) return lenses
+  if (!lenses.approved || FINAL_GATE === 'none') return lenses
   // Final gate: runs only once every lens has approved.
   const fin = (await run('final-reviewer.md', `final:${A.id}#${round}`, { branch: work.branch, report: work, lens_summary: lenses.summary }, { schema: REVIEW_SCHEMA, model: FINAL }))
     || (await run('final-reviewer.md', `final:${A.id}#${round}-retry`, { branch: work.branch, report: work, lens_summary: lenses.summary }, { schema: REVIEW_SCHEMA, model: FINAL }))
@@ -113,4 +119,4 @@ for (let round = 1; work && round <= MAX; round++) {
   if (!next) { notes.push(`round ${round + 1}: revision failed twice; stopping unapproved`); break }
   work = next
 }
-return { id: A.id, approved, review_rounds: history.length, branch: work?.branch, report: work, last_review: history[history.length - 1] || null, notes }
+return { id: A.id, approved, final_gate: FINAL_GATE, review_rounds: history.length, branch: work?.branch, report: work, last_review: history[history.length - 1] || null, notes }

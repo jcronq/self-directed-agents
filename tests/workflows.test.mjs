@@ -72,8 +72,16 @@ await scenario('build: consumes/provides/owned files reach the worker prompt', R
   const run = (id) => load(RB)({ ...base, id, base: 'main', brief: 'b' }, agent, () => {})
   const out = await Promise.race([Promise.all([run('slow'), run('fast')]), timeout]).catch(e => e)
   const ok = Array.isArray(out) && out.every(o => o.approved) && events.indexOf('final:fast#1') < events.indexOf('general:slow#1')
-  console.log(`${ok ? 'PASS' : 'FAIL'} build: a finished package is reviewed while another is still building`); if (!ok) { process.exitCode = 1; console.log(out, events) }
+  console.log(`${ok ? 'PASS' : 'FAIL'} regression: a finished package is reviewed while another is still building`); if (!ok) { process.exitCode = 1; console.log(out, events) }
 }
+await scenario("build: final_gate 'none' ends at first-pass approval, no final review", RB, { id: 'n', base: 'main', brief: 'b', final_gate: 'none' },
+  okRev, (o, c) => o.approved && o.final_gate === 'none' && o.review_rounds === 1 && c.join() === 'work:n,general:n#1,arch:n#1')
+await scenario("build: final_gate 'none' still revises on a lens block", RB, { id: 'm', base: 'main', brief: 'b', final_gate: 'none' },
+  (l, p) => l.startsWith('work:') ? work(branchOf(p)) : review(l !== 'arch:m#1'),
+  (o, c) => o.approved && o.review_rounds === 2 && !c.some(x => x.startsWith('final:')))
+await scenario("build: final_gate defaults to 'package' (final review runs)", RB, { id: 'd', base: 'main', brief: 'b' },
+  okRev, (o, c) => o.approved && o.final_gate === 'package' && c.includes('final:d#1'))
+await scenario('build: unknown final_gate rejected', RB, { id: 'w', base: 'main', brief: 'b', final_gate: 'x' }, () => null, () => false).catch(e => console.log(/unknown final_gate/.test(e.message) ? 'PASS build: unknown final_gate throws' : (process.exitCode = 1, 'FAIL ' + e.message)))
 const areas = [{ key: 'a', focus: 'f', interface: 'browser' }, { key: 'b', focus: 'f', interface: 'api' }]
 await scenario('gate: dead tester blocks a "passed" triage', AG, { branch: 'feat', areas },
   (l) => l.startsWith('test:b') ? null : l.startsWith('test:') ? { area: 'a', actions: 3, works: [], findings: [], verdict: 'ok' }
@@ -166,3 +174,13 @@ await scenario('gate: final agent dies twice -> package unapproved with note', A
   },
   (o, c) => !o.gate_passed && o.rounds[0].stopped === 'no fix package was approved' && o.rounds[0].fixes[0].note === 'round 1: final reviewer failed twice' && o.rounds[0].fixes[0].last_review?.approved === false && /general: s/.test(o.rounds[0].fixes[0].last_review.summary)
     && c.filter(x => x.startsWith('final:r1-p1')).length === 2)
+await scenario("gate: final_gate 'none' -> fix package skips its Opus gate, the integrated branch still gets one", AG, { branch: 'feat', areas: [areas[0]], final_gate: 'none' },
+  (l, p) => {
+    if (l.startsWith('test:')) return { area: 'a', actions: 1, works: [], findings: [], verdict: 'ok' }
+    if (l === 'triage#1') return { confirmed: [{ id: 'F1', title: 't', severity: 'major', reproduced: true, root_cause: 'x', repro: 'r' }], rejected: [], fix_packages: [{ id: 'p1', finding_ids: ['F1'], owned_files: ['a.py'], plan: 'p' }], issues_to_file: [], gate_passed: false }
+    if (l.startsWith('triage')) return { confirmed: [], rejected: [], fix_packages: [], issues_to_file: [], gate_passed: true }
+    if (l.startsWith('work:')) return work(branchOf(p))
+    if (l.startsWith('integrate:')) return { branch: branchOf(p), head_sha: 'h', merged: [], full_suite: { passed: 1, failed: 0, errors: 0, skipped: 0 }, summary: 's' }
+    return review(true)
+  },
+  (o, c) => o.gate_passed && !c.includes('final:r1-p1#1') && c.includes('final:int-r1#1') && c.includes('arch:r1-p1#1'))
