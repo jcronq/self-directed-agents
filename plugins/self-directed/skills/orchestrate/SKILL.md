@@ -47,7 +47,7 @@ worker (`prompts/_common.md` + `prompts/worker.md`) → reviewers in parallel, o
 if any review blocks, `prompts/revise.md` with the problems verbatim → repeat, at most 3 rounds.
 Review is two-tier: workers and lens reviewers run on Sonnet. Only when every lens approves, one final reviewer
 (`prompts/final-reviewer.md`, Opus) reviews the whole change (for an organization, the integrated result, not each package); if it blocks, its problems go back to the author
-verbatim and the lenses and final gate run again. The 3-round cap covers the whole loop. Approval requires every
+verbatim and the lenses and final gate run again. The 3-round cap is per package and covers its whole loop. Approval requires every
 lens and then the final gate. Require the schemas in `schemas.md` from every agent and reject reports without counts.
 
 Never integrate unapproved work. List it for the owner with its last review.
