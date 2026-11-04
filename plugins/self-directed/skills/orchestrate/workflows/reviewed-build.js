@@ -7,6 +7,7 @@ export const meta = {
 //   repo, profile, prompts,            // absolute paths; prompts = this skill's prompts/ dir
 //   id, base, brief,                   // package id, base branch/sha, brief text
 //   owned_files?: [], others?: [],     // files this package owns / files owned by parallel packages
+//   consumes?: '', provides?: '',      // interface this package builds against / commits first for dependents
 //   lenses?: ['general','arch','ux'],  // default ['general','arch']
 //   max_rounds?: 3,
 //   ports?: '9200-9999',               // give each concurrent run its own range
@@ -17,6 +18,8 @@ export const meta = {
 //   reviewer_model?,                   // back-compat alias for final_review_model
 //   project?: ''
 // }
+// One run is one package. Run it once per package, concurrently: each package reviews itself as soon as its build
+// finishes, so review is already a pipeline across packages and never waits for the other builds.
 // Review is two-tier. Lenses run on review_model; a block goes back to the author. Only when every lens approves
 // does one final reviewer (final_review_model) review the whole change. A final block also goes back to the
 // author, then lenses and the final gate run again. max_rounds bounds the whole loop.
@@ -55,7 +58,8 @@ const scratchFor = (label) => `${A.scratch || '/tmp/sd'}/${A.id}/${label.replace
 const vars = (extra) => Object.entries({
   project: A.project || A.repo, repo: A.repo, profile: A.profile, id: A.id, base: A.base, brief: A.brief,
   owned_files: (A.owned_files || []).join(', ') || '(not restricted)',
-  others: (A.others || []).join(', ') || '(none)', ...extra,
+  others: (A.others || []).join(', ') || '(none)',
+  consumes: A.consumes || '(none)', provides: A.provides || '(none stated)', ...extra,
 }).map(([k, v]) => `{{${k}}} = ${typeof v === 'string' ? v : JSON.stringify(v)}`).join('\n')
 const run = (role, label, extra, opts) => agent(
   `Read ${A.prompts}/_common.md, then ${A.prompts}/${role}, and the schemas in ${A.prompts}/../schemas.md. ` +

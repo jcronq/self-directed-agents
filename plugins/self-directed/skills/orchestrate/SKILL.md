@@ -20,14 +20,22 @@ You are the manager throughout: plan, route, review and report, and leave the bu
 ## 1. Plan
 - Turn the goal into packages, each with: an id, a brief, acceptance criteria, owned_files (no overlap between
   packages in the same wave) and dependencies.
+- Default to an organization of agents (manual §9): one worker per package, never one per project. Design first:
+  have an architect fix shared types, contracts and file ownership, and commit the interfaces before dependents start.
+- The plan output always includes: the **package list** (id, owned_files, consumes, provides), the **dependencies**,
+  the **parallel launch waves** (a dependent package launches once its dependency's interface commit lands), and the
+  **critical path** (the chain that sets the finish time). Send it to the owner before launching.
 - Have an independent reviewer agent review the plan before building. A plan is work product too.
 - Record any defaults you chose in the decision log. Ask the owner only what the manual's §1 allows.
 
 ## 2. Build each package (in parallel waves)
 **With the Workflow tool** (when it exists and the owner opted in; invoking this skill counts as opting in to
 its workflows): run `workflows/reviewed-build.js` once per package, independent packages in parallel, with args
-`{repo, profile, prompts: "<this skill dir>/prompts", id, base, brief, owned_files, others, lenses, ports}`
+`{repo, profile, prompts: "<this skill dir>/prompts", id, base, brief, owned_files, others, consumes, provides, lenses, ports}`
 (optional: `review_model` default `sonnet`, `final_review_model` default `opus`; `reviewer_model` is an alias for the latter).
+Each package reviews itself the moment its build finishes, while other packages are still building; don't wait for all
+builds. Don't run the full suite in every agent: workers run targeted tests while iterating and one full run at the end;
+the integrator runs the one full suite per round. Cap concurrent packages by CPU count.
 Lenses are `general`, `arch`, `ux`; add `"ux"` for anything user-facing. Give each concurrent package a distinct
 port range and scratch dir.
 
@@ -42,7 +50,8 @@ lens and then the final gate. Require the schemas in `schemas.md` from every age
 Never integrate unapproved work. List it for the owner with its last review.
 
 ## 3. Integrate
-`prompts/integrator.md` merges the approved branches into one integration branch, followed by a general review.
+`prompts/integrator.md` merges approved branches into one integration branch as they land, runs the one full suite,
+followed by a general review. The final gate runs once, on this integrated result.
 Push it right away as a draft PR if the profile allows pushing. The push doesn't wait for the gate; the merge does.
 
 ## 4. Live use test (the acceptance gate)

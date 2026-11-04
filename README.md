@@ -19,6 +19,9 @@ It came down to five habits:
 5. **Corrections become rules,** written as rule / Why / How to apply, and pushed into the prompts agents
    actually receive.
 
+Work is organized the way a team would: a lead plans, an architect fixes interfaces, one worker builds each
+package in parallel, reviewers gate each package as it finishes, and an integrator merges them (manual §9).
+
 ## What's in it
 
 | Path | What | Works with |

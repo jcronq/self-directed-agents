@@ -66,7 +66,9 @@ Scale the process the same way, and reflect at each stage:
 - **Scale the process to the request.** A simple request gets minimal scope. A
   complex one goes through stages: specification (requirements and
   constraints), design (pseudocode or architecture), then a test-first build,
-  then completion (full tests and docs). Each stage does only its own job:
+  then completion (full tests and docs). From the build stage on, a complex
+  request is decomposed into parallel packages and run by an organization of
+  agents (§9), never handed to one builder. Each stage does only its own job:
   research enumerates what exists (files, configs, tests) without speculating
   or planning, and implementation does only what was planned.
 - **Reflection checkpoints.** After the requirements, check that the scope is
@@ -96,9 +98,11 @@ what the one below misses.
    on and record the counts. Then a later failure is known to be yours, not
    one that was already there.
 1. **Targeted tests** while iterating: the tests you touched plus tests
-   importing modules you touched.
-2. **Full suite:** once per unit of work, by the author. (When CI genuinely runs
-   the suite, CI is the authoritative full run; don't repeat it in every agent.)
+   importing modules you touched. Never the full suite on every iteration.
+2. **Full suite:** once per round. A package worker runs it once, at the end of
+   its package; the integrator runs it once on the merged result (§9). (When CI
+   genuinely runs the suite, CI is the authoritative full run; don't repeat it
+   in every agent.)
 3. **Live run:** start the real system and exercise the change.
 4. **Live use test** by a separate agent through the real interface (§6).
 
@@ -219,14 +223,57 @@ layer under test:**
   conflict resolution, so `git cherry` alone overstates what's missing.
 - Merge only on real green CI. Never use an admin override over a red check.
 
-## 9. Orchestrating parallel agents
+## 9. Running an organization of agents
 
-- **Decompose into packages** that each own an explicit set of files.
-  Parallelize only packages that are independent of each other.
+Give work to a whole organization of agents, not to a single one. For any
+non-trivial effort this is the default shape. One builder doing a whole
+project serially is the failure to avoid: it becomes the long pole, and
+nothing gets reviewed until everything is built.
+
+- **Org shape.** Each role is its own agent with fresh context:
+  - **Lead/manager:** plans, routes, keeps state, reports to the owner.
+  - **Architect:** fixes the design, shared interfaces and file ownership.
+  - **Package workers:** one per package.
+  - **Per-package reviewers:** one per lens (§5).
+  - **Integrator:** merges approved packages and runs the full suite.
+  - **Live-use tester:** exercises the integrated product (§6).
+  - **Final gate:** one reviewer on the strongest model.
+
+  Workers and first-pass reviewers run on the cheaper model (Sonnet); only the
+  final gate runs on the strongest (Opus).
+- **Interfaces first.** The design stage fixes the shared types, contracts and
+  file ownership (no file owned by two packages in a wave) before any
+  building starts. Then launch every independent package at once. Each gets
+  its own worktree or branch, its own port range, its own database and its
+  own temp dirs.
+- **One worker per package, not one per project.** A package is a unit one
+  worker can build and test on its own, with an explicit set of owned files.
+  A dependent package starts as soon as its dependency's *interface commit*
+  lands (types, stubs, contract tests), not when the whole dependency is
+  finished.
 - **Give each worker a self-contained brief:** goal, context to read, owned
-  files, acceptance criteria, rules, and the **required report schema**
-  (see the `orchestrate` skill or `prompts/`). Structured reports force the
-  evidence (§3) to exist.
+  files, the interface it consumes and the interface it provides, acceptance
+  criteria, testing cadence (targeted while iterating, one full run at the
+  end), rules, and the **required report schema** (see the `orchestrate`
+  skill or `prompts/`). Structured reports force the evidence (§3) to exist.
+- **Review as a pipeline.** A package goes to its first-pass reviewers the
+  moment it is done, while other packages are still building. Fix rounds stay
+  per package: a finding in one package doesn't hold up or re-open the others.
+  The final gate runs once, on the integrated result. Reviewer rounds count
+  per package (§5).
+- **An integrator merges packages.** It takes approved packages as they
+  land, resolves conflicts so both sides' intent is kept, and runs the one
+  full suite per round (§4). Workers and reviewers don't re-run it.
+- **Plan the critical path.** Before launching, the lead lists the packages,
+  their dependencies, which run in parallel (the launch waves) and which chain
+  sets the finish time. Report that plan to the owner up front. Put the
+  longest chain first and split it if it dominates.
+- **Cost and pressure limits.** Cap concurrency by CPU count and leave
+  headroom for the owner on a shared machine (§7); queue the rest. Keep the
+  two-tier review order (§5): parallelism is *within* a tier (all lenses at
+  once, all packages at once), never by calling the final gate early. When the
+  owner has opted into workflows, prefer a workflow script's `pipeline()` for
+  deterministic fan-out over launching agents ad hoc.
 - **The lead is a manager, not a worker.** You coordinate, route, keep state
   and are the owner's main contact; workers do the substantive work
   (research, code, builds and tests, long documents). Quick lookups to route

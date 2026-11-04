@@ -52,6 +52,28 @@ await scenario('build: reviewer_model is a back-compat alias for the final model
 await scenario('build: review_model and final_review_model override', RB, { id: 'j', base: 'main', brief: 'b', review_model: 'haiku', final_review_model: 'fin', reviewer_model: 'ignored' },
   okRev, (o, c, m) => m['general:j#1'] === 'haiku' && m['final:j#1'] === 'fin')
 await scenario('build: unknown lens rejected', RB, { id: 'u', base: 'main', brief: 'b', lenses: ['nope'] }, () => null, () => false).catch(e => console.log(/unknown lens/.test(e.message) ? 'PASS build: unknown lens throws' : (process.exitCode = 1, 'FAIL ' + e.message)))
+await scenario('build: consumes/provides/owned files reach the worker prompt', RB, { id: 'v', base: 'main', brief: 'b', owned_files: ['a.py'], consumes: 'Foo API', provides: 'Bar API' },
+  (l, p) => { if (l === 'work:v') globalThis.wp = p; return l.startsWith('work:') ? work(branchOf(p)) : review(true) },
+  () => /\{\{consumes\}\} = Foo API/.test(globalThis.wp) && /\{\{provides\}\} = Bar API/.test(globalThis.wp) && /\{\{owned_files\}\} = a\.py/.test(globalThis.wp))
+{
+  // Two packages run concurrently. Package "slow" stays building until "fast" has been fully reviewed:
+  // that only terminates if review of a finished package starts while another is still building.
+  const events = []
+  let releaseSlow
+  const slowGate = new Promise(r => { releaseSlow = r })
+  const agent = async (prompt, o) => {
+    events.push(o.label)
+    if (o.label === 'work:slow') { await slowGate; return work(branchOf(prompt)) }
+    if (o.label.startsWith('work:')) return work(branchOf(prompt))
+    if (o.label === 'final:fast#1') releaseSlow()
+    return review(true)
+  }
+  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('deadlock: fast review waited for slow build')), 2000))
+  const run = (id) => load(RB)({ ...base, id, base: 'main', brief: 'b' }, agent, () => {})
+  const out = await Promise.race([Promise.all([run('slow'), run('fast')]), timeout]).catch(e => e)
+  const ok = Array.isArray(out) && out.every(o => o.approved) && events.indexOf('final:fast#1') < events.indexOf('general:slow#1')
+  console.log(`${ok ? 'PASS' : 'FAIL'} build: a finished package is reviewed while another is still building`); if (!ok) { process.exitCode = 1; console.log(out, events) }
+}
 const areas = [{ key: 'a', focus: 'f', interface: 'browser' }, { key: 'b', focus: 'f', interface: 'api' }]
 await scenario('gate: dead tester blocks a "passed" triage', AG, { branch: 'feat', areas },
   (l) => l.startsWith('test:b') ? null : l.startsWith('test:') ? { area: 'a', actions: 3, works: [], findings: [], verdict: 'ok' }

@@ -14,5 +14,5 @@ Reviewer nits (optional; fix them only if they're cheap and inside your owned fi
 {{nits}}
 
 If you believe a problem is wrong, don't skip it silently. Explain why in `unresolved`, with evidence.
-Re-run the live check and the full suite, commit, and return the FULL updated Worker report.
+Re-run the live check and targeted tests while iterating, then the full suite once at the end; commit, and return the FULL updated Worker report.
 Keep `baseline` from the original run (the counts before any change); add any new lessons to `lessons`.
