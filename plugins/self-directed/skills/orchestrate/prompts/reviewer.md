@@ -16,5 +16,6 @@ Stance: assume shortcuts were taken. Verify the claims yourself:
 - Look for regressions in neighbouring features, and for security problems: input handling, authz, secrets, injection.
 - Check that no test was weakened, skipped or deleted.
 
-Approve ONLY if no material problem remains. Each problem needs a file:line and a concrete fix.
+Your effort level is {{effort}}; at levels 1 to 3 block only on {{block_on}} problems (see the effort rules above) and put everything else in `nits`. At level 4, approve ONLY if no material problem remains.
+Approve ONLY if no problem of that weight remains. Each problem needs a file:line and a concrete fix.
 Report using the Review schema; list what you actually ran in `verified`.

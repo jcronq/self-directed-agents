@@ -1,9 +1,10 @@
-# Handoff: <effort>, <date>
+# Handoff: <effort name>, <date>
 
 Context a fresh session or host needs that isn't in the repo, git history or memory. Keep it current.
 
 ## Goal and owner's standing instructions
 - Goal: <one line>
+- Effort level: <1 spike / 2 prototype / 3 solid / 4 autonomous, as the owner stated it; raise only when the owner says so>
 - Authority granted: <owner's words, with the date>
 - Standing constraints: <list>
 

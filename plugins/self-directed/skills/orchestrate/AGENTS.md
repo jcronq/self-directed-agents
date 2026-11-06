@@ -33,9 +33,42 @@ checked by someone other than its author, and "done" means the real thing ran.**
 - Record standing grants of authority durably (memory or the profile) so the
   next session inherits them, not just this one.
 
+## 1a. Effort level
+
+Every request runs at one of four effort levels. The level sets how thorough
+the process is; everything after this section is scaled by it.
+
+| | 1 · Spike | 2 · Prototype | 3 · Solid | 4 · Autonomous |
+|---|---|---|---|---|
+| Goal | "Does the idea work?" | Usable demo | Mergeable feature | Build it properly, unattended |
+| Design stage | None | Short plan | Design + one review | Design + reviews, interfaces first |
+| Workers | 1 | 1–2 | Parallel packages | Full organization (§9) |
+| Tests | Smoke check | Main-path tests | Test-first, full suite | Test-first, full suite, live use test |
+| Reviews | None; lead spot-checks | One cheaper-model pass, blockers only | Cheaper-model lenses per package | Lenses, then the strongest-model final gate |
+| Fix rounds | Only what breaks the demo | 1, blockers only | Up to 3; non-blocking fixes if cheap | Up to 4, plus leftovers filed |
+| Live run | Optional | One happy path | Scenarios with a rubric | Full acceptance run, evidence kept |
+| Integrate | Branch only, never the main branch | Branch or draft PR | Merge when green | Merge + docs + lessons |
+| Report | One line | Short | Standard | Full, with evidence |
+
+Rules:
+- The owner states the level per request. If it's unstated, ask once, briefly,
+  offering the four levels. Never infer it.
+- Say the level you are using in your first reply.
+- Pass the level to every worker and reviewer, and record it in the handoff.
+- Nothing escalates silently. If lower-effort work hits a real problem, report
+  it and ask whether to raise the level.
+- Reviewers at levels 2 and 3 block only on material problems; the rest are nits.
+- Explicit settings (rounds, lenses, final gate) override the level's defaults.
+- These hold at every level:
+  - never touch production or the owner's running services without isolation;
+  - never merge level-1 or level-2 work to the main branch unasked;
+  - destructive or outward actions still need confirmation (§1);
+  - evidence stays honest (§3); lower levels simply claim less.
+
 ## 2. Definition of done
 
-Work is done only when **all** of the following hold:
+Work is done only when **all** of the following hold at the chosen effort level
+(§1a; levels 1 to 3 define "done" by their table column and claim less):
 
 1. **It has landed:** the change is on the integration target (merged,
    deployed, released, whatever the profile says), or, where the profile
@@ -61,7 +94,8 @@ Scale the gate to the change: a docs-only or config-comment change needs
 review and a check that it renders or parses, not a live use test. Any change
 to behaviour needs the full list.
 
-Scale the process the same way, and reflect at each stage:
+Scale the process the same way, by the effort level (§1a) first and the size
+of the request second, and reflect at each stage:
 
 - **Scale the process to the request.** A simple request gets minimal scope. A
   complex one goes through stages: specification (requirements and
@@ -91,7 +125,9 @@ Scale the process the same way, and reflect at each stage:
 
 ## 4. Verification ladder
 
-Climb it in order. Rung 0 sets the reference point; each later rung catches
+Climb it in order, as far as the effort level (§1a) asks: level 1 stops at a
+smoke check, level 2 at main-path tests and one live happy path, level 3 at
+the full suite and scenario runs, level 4 climbs every rung. Rung 0 sets the reference point; each later rung catches
 what the one below misses.
 
 A **round** is one integration pass: packages are built and reviewed, merged
@@ -125,7 +161,11 @@ Rules:
 
 ## 5. Independent review
 
-- **Nothing ships unreviewed,** including your own "small" changes, docs,
+- **Scaled by effort (§1a).** Level 1 has no reviewers (the lead spot-checks),
+  level 2 one cheaper-model correctness pass, level 3 the cheaper-model lenses,
+  level 4 the lenses plus the final gate. The rules below apply in full at
+  level 4; lower levels take the subset their column names.
+- **Nothing ships unreviewed** at level 4, including your own "small" changes, docs,
   plans and merges.
 - **The reviewer is not the author.** Use a separate agent with fresh context.
   Give it the diff, the brief and the author's report, not your conclusions.
@@ -161,7 +201,9 @@ Rules:
 
 ## 6. The live use test (the acceptance gate)
 
-Tests check the code; the live use test checks the product. An agent uses the
+Tests check the code; the live use test checks the product. Its depth is set
+by the effort level (§1a): optional at level 1, one happy path at 2,
+scenarios with a rubric at 3, a full acceptance run at 4. An agent uses the
 running system through its **real interface**, the way a user would, and
 reports what happened. (Other names for this: playtest, dogfooding,
 exploratory QA.)
@@ -233,8 +275,9 @@ layer under test:**
 
 ## 9. Running an organization of agents
 
-Give work to a whole organization of agents, not to a single one. For any
-non-trivial effort this is the default shape. One builder doing a whole
+Give work to a whole organization of agents, not to a single one. At effort
+level 4 (§1a) this is the default shape; levels 1 to 3 use fewer workers (1, 1–2,
+parallel packages). One builder doing a whole
 project serially is the failure to avoid: it becomes the long pole, and
 nothing gets reviewed until everything is built.
 

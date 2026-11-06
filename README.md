@@ -37,6 +37,8 @@ package in parallel, reviewers gate each package as it finishes, and an integrat
 `AGENTS.md`, `prompts/`, `schemas.md` and the files in `templates/` are symlinks into the plugin, so
 there's one copy of each. On Windows, clone with `core.symlinks=true`.
 
+**Effort scale.** Every request runs at a stated effort level, 1 spike, 2 prototype, 3 solid, 4 autonomous, that sets how thorough design, review, fixing, live testing and integration are (manual §1a). The owner chooses it per request; the agent asks if it is unstated and never infers it, and nothing escalates silently. Both Workflow scripts require an `effort` arg (1–4) and throw without one; it sets the defaults for lenses, review rounds, final gate and live-run depth, and explicit args still override. Callers written before the scale must now pass `effort` (4 reproduces their old behaviour).
+
 `reviewer_model` now sets only the final gate; set `review_model` to put the lens reviewers on a stronger model.
 
 ## Install

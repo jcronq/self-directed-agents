@@ -15,6 +15,7 @@ For each finding:
 {{rubric}}
 3. Find the root cause (file:line).
 
+Effort level {{effort}}. Scope of fix packages: {{fix_scope}}.
 Group the confirmed blockers and majors into fix packages whose owned_files do NOT overlap.
 Minors and out-of-scope findings go to `issues_to_file`.
 Gate rule: {{gate}}. Set `gate_passed` accordingly.

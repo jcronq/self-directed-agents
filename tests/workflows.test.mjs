@@ -2,7 +2,8 @@
 import fs from 'fs'
 const load = (f) => new Function('args', 'agent', 'phase', `return (async () => {${fs.readFileSync(f, 'utf8').replace(/^export const meta/m, 'const meta')}\n})()`)
 const W = process.argv[2] || new URL("../plugins/self-directed/skills/orchestrate/workflows", import.meta.url).pathname
-const base = { repo: '/r', profile: '/r/P.md', prompts: '/k/prompts', rubric: 'r', gate: 'g' }
+// effort is required by both scripts; 4 keeps the pre-effort defaults (both lenses, package final gate) for the older scenarios.
+const base = { repo: '/r', profile: '/r/P.md', prompts: '/k/prompts', rubric: 'r', gate: 'g', effort: 4 }
 const work = (b) => ({ branch: b, commit_sha: 'abc', changes: [], tests_added: [], amendments_addressed: [], baseline: { passed: 5, failed: 0, errors: 0, skipped: 0 }, full_suite_after: { passed: 5, failed: 0, errors: 0, skipped: 0 }, live_verified: 'x', unresolved: [], lessons: [] })
 const branchOf = (p) => (p.match(/\{\{branch\}\} = (\S+)/) || [])[1]
 const review = (ok) => ({ approved: ok, problems: ok ? [] : [{ file: 'a.py:1', issue: 'bad' }], nits: ['n'], verified: ['ran'], summary: 's' })
@@ -184,3 +185,50 @@ await scenario("gate: final_gate 'none' -> fix package skips its Opus gate, the 
     return review(true)
   },
   (o, c) => o.gate_passed && !c.includes('final:r1-p1#1') && c.includes('final:int-r1#1') && c.includes('arch:r1-p1#1'))
+
+// Effort scale (manual §1a)
+const rejects = (name, file, args, re) => scenario(name, file, args, () => null, () => false)
+  .catch(e => console.log(re.test(e.message) ? `PASS ${name}` : `FAIL ${name}: ${e.message}`)).then(() => {})
+const blockAll = (l, p) => l.startsWith('work:') ? work(branchOf(p)) : review(false)
+const stages = (c) => c.map(x => x.split(':')[0])
+await scenario('effort 1 (build): no reviewers, 0 rounds, flagged unreviewed', RB, { id: 'e1', base: 'main', brief: 'b', effort: 1 },
+  okRev, (o, c) => c.join() === 'work:e1' && o.review_rounds === 0 && o.unreviewed === true && o.effort === 1 && o.final_gate === 'none' && o.branch === 'sd/e1')
+await scenario('effort 2 (build): one correctness lens, 1 round, no final gate', RB, { id: 'e2', base: 'main', brief: 'b', effort: 2 },
+  blockAll, (o, c) => c.join() === 'work:e2,general:e2#1' && o.review_rounds === 1 && !o.approved && o.final_gate === 'none')
+await scenario('effort 2 (build): approving lens ends the loop without a final gate', RB, { id: 'e2b', base: 'main', brief: 'b', effort: 2 },
+  okRev, (o, c) => o.approved && c.join() === 'work:e2b,general:e2b#1')
+await scenario('effort 3 (build): configured lenses, up to 3 rounds, no final gate', RB, { id: 'e3', base: 'main', brief: 'b', effort: 3, lenses: ['general', 'arch', 'ux'] },
+  blockAll, (o, c) => o.review_rounds === 3 && !o.approved && o.final_gate === 'none' && c.filter(x => x.startsWith('ux:')).length === 3 && !c.some(x => x.startsWith('final:')) && !c.includes('work:e3#4'))
+await scenario('effort 4 (build): configured lenses, up to 4 rounds, package final gate', RB, { id: 'e4', base: 'main', brief: 'b', effort: 4 },
+  blockAll, (o, c) => o.review_rounds === 4 && !o.approved && o.final_gate === 'package' && c.filter(x => x.startsWith('arch:')).length === 4)
+await scenario('effort 4 (build): final gate runs after the lenses approve', RB, { id: 'e4b', base: 'main', brief: 'b', effort: 4 },
+  okRev, (o, c) => o.approved && c.join() === 'work:e4b,general:e4b#1,arch:e4b#1,final:e4b#1')
+await scenario('effort (build): explicit args override the level', RB, { id: 'eo', base: 'main', brief: 'b', effort: 1, lenses: ['arch'], max_rounds: 2, final_gate: 'package' },
+  blockAll, (o, c) => o.review_rounds === 2 && o.final_gate === 'package' && c.includes('arch:eo#1') && !c.includes('general:eo#1'))
+await scenario('effort (build): the level reaches the worker and reviewer prompts', RB, { id: 'ep', base: 'main', brief: 'b', effort: 3 },
+  (l, p) => { globalThis.ep = { ...globalThis.ep, [l]: p }; return l.startsWith('work:') ? work(branchOf(p)) : review(true) },
+  () => /\{\{effort\}\} = 3/.test(globalThis.ep['work:ep']) && /\{\{effort\}\} = 3/.test(globalThis.ep['general:ep#1']) && /\{\{block_on\}\} = material/.test(globalThis.ep['general:ep#1']))
+await rejects('build: missing effort rejected', RB, { id: 'em', base: 'main', brief: 'b', effort: undefined }, /effort/)
+await rejects('build: invalid effort rejected', RB, { id: 'ei', base: 'main', brief: 'b', effort: 5 }, /effort/)
+await rejects('build: string effort rejected', RB, { id: 'es', base: 'main', brief: 'b', effort: 'high' }, /effort/)
+await rejects('gate: missing effort rejected', AG, { branch: 'feat', areas, effort: undefined }, /effort/)
+await rejects('gate: invalid effort rejected', AG, { branch: 'feat', areas, effort: 0 }, /effort/)
+const fixScript = (l, p) => {
+  if (l.startsWith('test:')) return { area: 'a', actions: 1, works: [], findings: [], verdict: 'ok' }
+  if (l === 'triage#1') { globalThis.tp = p; return { confirmed: [{ id: 'F1', title: 't', severity: 'major', reproduced: true, root_cause: 'x', repro: 'r' }], rejected: [], fix_packages: [{ id: 'p1', finding_ids: ['F1'], owned_files: ['a.py'], plan: 'p' }], issues_to_file: [], gate_passed: false } }
+  if (l.startsWith('triage')) return { confirmed: [], rejected: [], fix_packages: [], issues_to_file: [], gate_passed: true }
+  if (l.startsWith('work:')) return work(branchOf(p))
+  if (l.startsWith('integrate:')) return { branch: branchOf(p), head_sha: 'h', merged: [], full_suite: { passed: 1, failed: 0, errors: 0, skipped: 0 }, summary: 's' }
+  return review(true)
+}
+await scenario('effort 1 (gate): one live run, no fixes, no reviewers', AG, { branch: 'feat', areas: [areas[0]], effort: 1 },
+  fixScript, (o, c) => !o.gate_passed && o.rounds.length === 1 && !c.some(x => /^(work|general|arch|final|integrate)/.test(x)))
+await scenario('effort 2 (gate): fix reviewed by one lens only, no final gate on the fix or the integration', AG, { branch: 'feat', areas: [areas[0]], effort: 2 },
+  fixScript, (o, c) => o.gate_passed && c.includes('general:r1-p1#1') && !c.includes('arch:r1-p1#1') && !c.some(x => x.startsWith('final:')) && /\{\{effort\}\} = 2/.test(globalThis.tp))
+await scenario('effort 3 (gate): configured lenses, no final gate on the fix', AG, { branch: 'feat', areas: [areas[0]], effort: 3 },
+  fixScript, (o, c) => o.gate_passed && c.includes('arch:r1-p1#1') && !c.includes('final:r1-p1#1'))
+await scenario('effort 4 (gate): fix packages get the final gate', AG, { branch: 'feat', areas: [areas[0]], effort: 4 },
+  fixScript, (o, c) => o.gate_passed && c.includes('final:r1-p1#1') && c.includes('final:int-r1#1'))
+await scenario('effort 4 (gate): 4 review rounds per fix', AG, { branch: 'feat', areas: [areas[0]], effort: 4 },
+  (l, p) => l.startsWith('test:') || l.startsWith('triage') || l.startsWith('work:') ? fixScript(l, p) : review(false),
+  (o, c) => c.filter(x => /^arch:r1-p1#/.test(x)).length === 4)

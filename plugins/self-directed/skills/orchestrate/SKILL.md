@@ -11,6 +11,13 @@ The other files referenced below sit next to this SKILL.md too: `prompts/`, `sch
 You are the manager throughout: plan, route, review and report, and leave the building to worker agents
 (manual §9).
 
+## Effort level (required)
+The skill takes `effort` (1 spike, 2 prototype, 3 solid, 4 autonomous), defined in manual §1a. The owner states it per request.
+- If it's missing, ask the owner once, briefly, offering the four levels, **before planning**. Never infer it.
+- Say the level in your first reply, and pass it to every worker and reviewer (`effort` arg of both workflows).
+- Nothing escalates silently: if lower-effort work hits a real problem, report it and ask whether to raise the level.
+- The level scales everything below: packages and waves (§1), lenses, rounds and final gate (§2), live-test depth (§4), and landing (§5; level 1 and 2 work never goes to the main branch unasked).
+
 ## 0. Ground yourself
 - Find the project profile (`PROJECT_PROFILE.md` at the repo root, or wherever the project's CLAUDE.md/AGENTS.md points).
   If there isn't one, run the `project-profile` skill first. Don't orchestrate without a verification recipe.
@@ -22,7 +29,7 @@ You are the manager throughout: plan, route, review and report, and leave the bu
   packages in the same wave) and dependencies.
 - Default to an organization of agents (manual §9): one worker per package, never one per project. Design first:
   have an architect fix shared types, contracts and file ownership, and commit the interfaces before dependents start.
-- The plan output always includes: the **package list** (id, owned_files, consumes, provides), the **dependencies**,
+- The plan output always states the **effort level**, and includes: the **package list** (id, owned_files, consumes, provides), the **dependencies**,
   the **parallel launch waves** (a dependent package launches once its dependency's interface commit lands), and the
   **critical path** (the chain that sets the finish time). Send it to the owner before launching.
 - Have an independent reviewer agent review the plan before building. A plan is work product too.
@@ -31,9 +38,9 @@ You are the manager throughout: plan, route, review and report, and leave the bu
 ## 2. Build each package (in parallel waves)
 **With the Workflow tool** (when it exists and the owner opted in; invoking this skill counts as opting in to
 its workflows): run `workflows/reviewed-build.js` once per package, independent packages in parallel, with args
-`{repo, profile, prompts: "<this skill dir>/prompts", id, base, brief, owned_files, others, consumes, provides, lenses, ports}`
-(optional: `final_gate` `"package"` (default) or `"none"`; `review_model` default `sonnet`, `final_review_model` default `opus`; `reviewer_model` is an alias for the latter).
-For an organization (more than one package) set `final_gate: "none"`: each package's loop ends at first-pass
+`{effort, repo, profile, prompts: "<this skill dir>/prompts", id, base, brief, owned_files, others, consumes, provides, lenses, ports}`
+(`effort` is required: a missing or invalid level makes the script throw. It sets the defaults for `lenses`, `max_rounds` and `final_gate`: 1 none/0/`none`, 2 `general` only/1/`none`, 3 configured lenses/3/`none`, 4 configured lenses/4/`package`. Explicit args override. Callers written before the scale must now pass `effort`; 4 matches their old behaviour. Optional: `final_gate` `"package"` (default) or `"none"`; `review_model` default `sonnet`, `final_review_model` default `opus`; `reviewer_model` is an alias for the latter).
+For an organization (more than one package, effort 4) set `final_gate: "none"`: each package's loop ends at first-pass
 approval, and the one Opus final gate runs on the integrated result (step 3). A single package keeps `"package"`;
 that gate is the integrated gate.
 Each package reviews itself the moment its build finishes, while other packages are still building; don't wait for all
@@ -62,7 +69,7 @@ Push it right away as a draft PR if the profile allows pushing. The push doesn't
 ## 4. Live use test (the acceptance gate)
 - Write down the areas (one tester each, as `{key, focus, interface}`), the interface for each area's layer, the severity rubric and the
   gate rule (all from the profile).
-- **With the Workflow tool:** `workflows/acceptance-gate.js` with `{repo, profile, prompts, branch, areas, rubric, gate, ports}`.
+- **With the Workflow tool:** `workflows/acceptance-gate.js` with `{effort, repo, profile, prompts, branch, areas, rubric, gate, ports}`; effort sets the test rounds, review rounds, fix lenses, final gate, live-run depth and triage's fix scope (explicit `max_rounds`, `review_rounds`, `fix_lenses`, `final_gate` override).
 - **Without it:** testers in parallel (`use-tester.md`) → `triage.md` (reproduce every finding) → fix packages
   through step 2, each based on the *current* integration branch → integrate → re-test. Stop when the gate
   passes, or after the round cap, and report.

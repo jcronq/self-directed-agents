@@ -8,4 +8,4 @@ Read and follow `reviewer.md` (in the same prompts directory as this file) in fu
   edge cases, weak or vacuous tests, claims in the report that don't hold.
 - Re-run anything in a lens summary that you would not accept on its word.
 
-Block only on material problems. Each problem needs a file:line and a concrete fix; it goes back to the author verbatim.
+Block only on material problems (effort level {{effort}}). Each problem needs a file:line and a concrete fix; it goes back to the author verbatim.

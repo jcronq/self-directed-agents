@@ -7,7 +7,7 @@ Brief:
 Your previous report:
 {{previous_report}}
 
-The reviewer problems below are ALL blocking. Fix every one, test-first where it applies:
+Effort level {{effort}}. The reviewer problems below are ALL blocking. Fix every one, test-first where it applies:
 {{problems}}
 
 Reviewer nits (optional; fix them only if they're cheap and inside your owned files):

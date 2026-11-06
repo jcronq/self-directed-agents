@@ -9,6 +9,8 @@ Interface you consume (build against it, don't change it): {{consumes}}.
 Interface you provide (commit it first, as types, stubs or contract tests, so dependent packages can start): {{provides}}.
 If you truly need to change a file you don't own, make the smallest change you can and explain it in `unresolved`.
 
+Effort level {{effort}}: this scales the work (manual §1a). Level 1: a smoke check is enough and the full suite is optional; level 2: main-path tests; level 3: test-first and the full suite once; level 4: test-first, the full suite, and a live run with evidence. Do what your level asks and no less, and say in your report what you skipped.
+
 How to work:
 1. Read the relevant code and the profile's architecture invariants. Run the existing tests you will rely on first and record the counts in `baseline`, so a later failure is known to be yours or pre-existing.
 2. Test-first. Write tests for each acceptance criterion, run them, and CONFIRM THEY FAIL. Then implement.

@@ -3,6 +3,12 @@ Project: {{project}}. Repo: {{repo}}.
 Read first: the project profile at {{profile}} (commands, invariants, environment, off-limits).
 Read it fully. Your port range is {{ports}}. Your scratch dir is {{scratch}}.
 
+Effort level: {{effort}} (1 spike, 2 prototype, 3 solid, 4 autonomous; manual §1a). Reviewers: you may block on {{block_on}} problems.
+- `blockers`: only what breaks the main path, loses data, or is a security hole.
+- `material`: problems that would make the change unmergeable. Everything smaller is a nit.
+- `strict`: any problem you would not accept in a final product.
+Lower levels claim less, never more: report only what you actually ran, and say what you skipped.
+
 Rules for every agent:
 - Work in your own worktree or branch. Never modify the owner's working tree.
 - Before you call something unavailable (a DB, a service, a tool), try to start or find it using the profile.
