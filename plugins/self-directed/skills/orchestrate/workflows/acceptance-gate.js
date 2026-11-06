@@ -4,15 +4,15 @@ export const meta = {
   phases: [{ title: 'Test' }, { title: 'Triage' }, { title: 'Fix' }, { title: 'Integrate' }],
 }
 // args: {
-//   effort,                                    // REQUIRED, 1-4 (manual §1a): sets the defaults below; a missing or invalid level throws
+//   effort,                                    // REQUIRED: spike | prototype | solid | autonomous, case-insensitive; 1-4 also accepted (manual §1a): sets the defaults below; a missing or invalid level throws
 //   repo, profile, prompts, branch,            // branch = what's under test; fixes stack on top of it
 //   areas: [{ key, focus, interface }],        // one tester per area, run in parallel
 //   rubric, gate,                              // severity rubric and gate rule (text)
 //   start_cmd?,                                // how testers start the system (default: the profile's "Run live")
-//   max_rounds?, review_rounds?,              // test rounds / review rounds per fix; default by effort: 1 -> 1/0, 2 -> 2/1, 3 -> 3/3, 4 -> 4/4
-//   final_gate?: 'package',                    // fix packages; default by effort: 4 -> 'package', 1-3 -> 'none'. 'package' gives each its own final review; 'none' ends
-//                                              // each at first-pass approval. The integrated branch gets the one final gate at effort 4
-//   fix_lenses?: ['general','arch'],           // default by effort: 1 none, 2 ['general'], 3-4 ['general','arch']; add 'ux' when fixes are user-facing
+//   max_rounds?, review_rounds?,              // test rounds / review rounds per fix; default by effort: spike 1/0, prototype 2/1, solid 3/3, autonomous 4/4
+//   final_gate?: 'package',                    // fix packages; default by effort: autonomous 'package', the others 'none'. 'package' gives each its own final review; 'none' ends
+//                                              // each at first-pass approval. The integrated branch gets the one final gate at Autonomous
+//   fix_lenses?: ['general','arch'],           // default by effort: spike none, prototype ['general'], solid and autonomous ['general','arch']; add 'ux' when fixes are user-facing
 //   ports?: '9200-9999', scratch?: '/tmp/sd-gate',
 //   worker_model?: 'sonnet',                   // builds, fixes and integrates
 //   review_model?: 'sonnet',                   // first-pass reviews of fix packages and integrations: every lens
@@ -23,19 +23,22 @@ export const meta = {
 // Triage also runs on final_review_model (it reproduces findings and decides the gate).
 // }
 // Explicit max_rounds, review_rounds, final_gate and fix_lenses override the effort defaults; effort itself has no default and is never guessed here (the lead decides, guessed or asked, and passes it).
-// Effort also sets the live-run depth (1 one run, no fixes; 2 happy path, blockers fixed; 3 scenarios; 4 full acceptance run)
+// Effort also sets the live-run depth (Spike one run, no fixes; Prototype happy path, blockers fixed; Solid scenarios; Autonomous full acceptance run)
 // and what triage may send to fix packages (2: blockers only; 3: blockers and majors; 4: as the gate rule says).
 // The workflow never pushes or files issues. It returns issues_to_file and the final branch for the lead.
 const A = args
 // Effort scale (manual §1a). depth and fix_scope go to testers and triage; block_on goes to reviewers.
 const EFFORT = {
-  1: { lenses: [], review_rounds: 0, rounds: 1, final: 'none', block_on: 'blockers', depth: 'one run of the main path; stop at the first blocker', fix_scope: 'none: report findings only, build no fix packages' },
-  2: { lenses: ['general'], review_rounds: 1, rounds: 2, final: 'none', block_on: 'blockers', depth: 'one happy path, end to end', fix_scope: 'blockers only; everything else goes to issues_to_file' },
-  3: { lenses: ['general', 'arch'], review_rounds: 3, rounds: 3, final: 'none', block_on: 'material', depth: 'scenarios covering each area, judged by the rubric', fix_scope: 'blockers and majors; minors go to issues_to_file' },
-  4: { lenses: ['general', 'arch'], review_rounds: 4, rounds: 4, final: 'package', block_on: 'strict', depth: 'full acceptance run of every area; keep the evidence', fix_scope: 'every finding the gate rule requires fixed' },
+  spike: { lenses: [], review_rounds: 0, rounds: 1, final: 'none', block_on: 'blockers', depth: 'one run of the main path; stop at the first blocker', fix_scope: 'none: report findings only, build no fix packages' },
+  prototype: { lenses: ['general'], review_rounds: 1, rounds: 2, final: 'none', block_on: 'blockers', depth: 'one happy path, end to end', fix_scope: 'blockers only; everything else goes to issues_to_file' },
+  solid: { lenses: ['general', 'arch'], review_rounds: 3, rounds: 3, final: 'none', block_on: 'material', depth: 'scenarios covering each area, judged by the rubric', fix_scope: 'blockers and majors; minors go to issues_to_file' },
+  autonomous: { lenses: ['general', 'arch'], review_rounds: 4, rounds: 4, final: 'package', block_on: 'strict', depth: 'full acceptance run of every area; keep the evidence', fix_scope: 'every finding the gate rule requires fixed' },
 }
-if (!Number.isInteger(A.effort) || !Object.hasOwn(EFFORT, A.effort)) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use 1 spike, 2 prototype, 3 solid, 4 autonomous)`)
-const E = EFFORT[A.effort]
+const EFFORT_NAMES = Object.keys(EFFORT)
+const effortKey = typeof A.effort === 'string' ? A.effort.toLowerCase() : Number.isInteger(A.effort) ? EFFORT_NAMES[A.effort - 1] : undefined
+if (!EFFORT_NAMES.includes(effortKey)) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use ${EFFORT_NAMES.join(', ')})`)
+const E = EFFORT[effortKey]
+const EFFORT_NAME = effortKey[0].toUpperCase() + effortKey.slice(1)
 const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md' }
 for (const k of ['repo', 'profile', 'prompts', 'branch', 'rubric', 'gate']) if (!A[k]) throw new Error(`missing arg: ${k}`)
 if (!Array.isArray(A.areas) || !A.areas.length) throw new Error('areas must be a non-empty array of {key, focus, interface}')
@@ -65,7 +68,7 @@ const INTEG = { type: 'object', properties: { branch: { type: 'string' }, head_s
 const [P0, P1] = (A.ports || '9200-9999').split('-').map(Number)
 let slot = 0
 const nextPorts = () => { const n = Math.max(1, Math.floor((P1 - P0 + 1) / 10)); const p = P0 + (slot++ % n) * 10; return `${p}-${p + 9}` }
-const vars = (extra) => Object.entries({ project: A.project || A.repo, repo: A.repo, profile: A.profile, rubric: A.rubric, gate: A.gate, effort: A.effort, block_on: E.block_on, ...extra })
+const vars = (extra) => Object.entries({ project: A.project || A.repo, repo: A.repo, profile: A.profile, rubric: A.rubric, gate: A.gate, effort: EFFORT_NAME, block_on: E.block_on, ...extra })
   .map(([k, v]) => `{{${k}}} = ${typeof v === 'string' ? v : JSON.stringify(v)}`).join('\n')
 const run = (role, label, phaseName, extra, opts) => agent(
   `Read ${A.prompts}/_common.md, then ${A.prompts}/${role}, and the schemas in ${A.prompts}/../schemas.md. Follow them with these values substituted:\n` +
@@ -82,7 +85,7 @@ const nitsText = (rv) => (rv.nits || []).map(n => `- ${n}`).join('\n') || '(none
 async function reviewed(id, phaseName, base, brief, doWork, reviseRole, schema, lenses, extra = {}, finalGate = 'package') {
   let work = await retry(doWork), last = null
   if (!work) return { id, approved: false, work: null, last, note: 'worker failed twice' }
-  if (REVIEW_ROUNDS === 0) return { id, approved: false, unreviewed: true, work, last, note: `effort ${A.effort}: no review ran` }
+  if (REVIEW_ROUNDS === 0) return { id, approved: false, unreviewed: true, work, last, note: `effort ${EFFORT_NAME}: no review ran` }
   for (let round = 1; round <= REVIEW_ROUNDS; round++) {
     const one = (l) => run(ROLE[l], `${l}:${id}#${round}`, phaseName, { id, base, brief, branch: work.branch, report: work }, { schema: REVIEW_SCHEMA, model: REVIEW_M })
     let rs = await Promise.all(lenses.map(one))
@@ -157,4 +160,4 @@ for (let round = 1; round <= MAX && !passed; round++) {
   branch = integ.work.branch // the next round tests (and builds on) the integrated branch
   ok.forEach(r => fixed.push(...tri.confirmed.filter(f => r.finding_ids.includes(f.id)).map(f => ({ id: f.id, title: f.title, repro: f.repro }))))
 }
-return { effort: A.effort, gate_passed: passed, final_branch: branch, rounds: log, fixed, issues_to_file: issues }
+return { effort: EFFORT_NAME, gate_passed: passed, final_branch: branch, rounds: log, fixed, issues_to_file: issues }

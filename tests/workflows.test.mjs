@@ -192,7 +192,7 @@ const rejects = (name, file, args, re) => scenario(name, file, args, () => null,
 const blockAll = (l, p) => l.startsWith('work:') ? work(branchOf(p)) : review(false)
 const stages = (c) => c.map(x => x.split(':')[0])
 await scenario('effort 1 (build): no reviewers, 0 rounds, flagged unreviewed', RB, { id: 'e1', base: 'main', brief: 'b', effort: 1 },
-  okRev, (o, c) => c.join() === 'work:e1' && o.review_rounds === 0 && o.unreviewed === true && o.effort === 1 && o.final_gate === 'none' && o.branch === 'sd/e1')
+  okRev, (o, c) => c.join() === 'work:e1' && o.review_rounds === 0 && o.unreviewed === true && o.effort === 'Spike' && o.final_gate === 'none' && o.branch === 'sd/e1')
 await scenario('effort 2 (build): one correctness lens, 1 round, no final gate', RB, { id: 'e2', base: 'main', brief: 'b', effort: 2 },
   blockAll, (o, c) => c.join() === 'work:e2,general:e2#1' && o.review_rounds === 1 && !o.approved && o.final_gate === 'none')
 await scenario('effort 2 (build): approving lens ends the loop without a final gate', RB, { id: 'e2b', base: 'main', brief: 'b', effort: 2 },
@@ -207,7 +207,18 @@ await scenario('effort (build): explicit args override the level', RB, { id: 'eo
   blockAll, (o, c) => o.review_rounds === 2 && o.final_gate === 'package' && c.includes('arch:eo#1') && !c.includes('general:eo#1'))
 await scenario('effort (build): the level reaches the worker and reviewer prompts', RB, { id: 'ep', base: 'main', brief: 'b', effort: 3 },
   (l, p) => { globalThis.ep = { ...globalThis.ep, [l]: p }; return l.startsWith('work:') ? work(branchOf(p)) : review(true) },
-  () => /\{\{effort\}\} = 3/.test(globalThis.ep['work:ep']) && /\{\{effort\}\} = 3/.test(globalThis.ep['general:ep#1']) && /\{\{block_on\}\} = material/.test(globalThis.ep['general:ep#1']))
+  () => /\{\{effort\}\} = Solid/.test(globalThis.ep['work:ep']) && /\{\{effort\}\} = Solid/.test(globalThis.ep['general:ep#1']) && /\{\{block_on\}\} = material/.test(globalThis.ep['general:ep#1']))
+const named = (n) => (l, p) => { globalThis.np = globalThis.np || {}; globalThis.np[`${n}:${l}`] = p; return l.startsWith('work:') ? work(branchOf(p)) : review(true) }
+for (const [n, shown, lenses, rounds, fin] of [['spike', 'Spike', 0, 0, 'none'], ['prototype', 'Prototype', 1, 1, 'none'], ['solid', 'Solid', 2, 3, 'none'], ['autonomous', 'Autonomous', 2, 4, 'package']])
+  await scenario(`effort name '${n}' (build): right defaults, reported as ${shown}`, RB, { id: 'n' + n, base: 'main', brief: 'b', effort: n },
+    named(n), (o, c) => o.effort === shown && o.final_gate === fin && c.filter(x => /^(general|arch):/.test(x)).length === lenses && (rounds === 0 ? o.unreviewed : true))
+await scenario('effort name is case-insensitive (build)', RB, { id: 'nc', base: 'main', brief: 'b', effort: 'SoLiD' }, okRev, (o) => o.effort === 'Solid' && o.final_gate === 'none')
+await scenario('effort name reaches the prompts, not a number', RB, { id: 'np', base: 'main', brief: 'b', effort: 'prototype' },
+  (l, p) => { globalThis.ep2 = globalThis.ep2 || {}; globalThis.ep2[l] = p; return l.startsWith('work:') ? work(branchOf(p)) : review(true) },
+  () => /\{\{effort\}\} = Prototype\n/.test(globalThis.ep2['work:np']) && /\{\{effort\}\} = Prototype\n/.test(globalThis.ep2['general:np#1']))
+await rejects('build: unknown effort name lists the names', RB, { id: 'ex', base: 'main', brief: 'b', effort: 'high' }, /spike.*prototype.*solid.*autonomous/i)
+await rejects('gate: unknown effort name lists the names', AG, { branch: 'feat', areas, effort: 'high' }, /spike.*prototype.*solid.*autonomous/i)
+await rejects("build: effort 'toString' name rejected", RB, { id: 'ey', base: 'main', brief: 'b', effort: '__proto__' }, /effort/)
 await rejects('build: missing effort rejected', RB, { id: 'em', base: 'main', brief: 'b', effort: undefined }, /effort/)
 await rejects('build: invalid effort rejected', RB, { id: 'ei', base: 'main', brief: 'b', effort: 5 }, /effort/)
 await rejects('build: string effort rejected', RB, { id: 'es', base: 'main', brief: 'b', effort: 'high' }, /effort/)
@@ -221,10 +232,12 @@ const fixScript = (l, p) => {
   if (l.startsWith('integrate:')) return { branch: branchOf(p), head_sha: 'h', merged: [], full_suite: { passed: 1, failed: 0, errors: 0, skipped: 0 }, summary: 's' }
   return review(true)
 }
+await scenario('effort name is case-insensitive (gate)', AG, { branch: 'feat', areas: [areas[0]], effort: 'PROTOTYPE' }, fixScript, (o) => o.effort === 'Prototype')
+await scenario('effort number maps to the name (gate)', AG, { branch: 'feat', areas: [areas[0]], effort: 4 }, fixScript, (o) => o.effort === 'Autonomous')
 await scenario('effort 1 (gate): one live run, no fixes, no reviewers', AG, { branch: 'feat', areas: [areas[0]], effort: 1 },
   fixScript, (o, c) => !o.gate_passed && o.rounds.length === 1 && !c.some(x => /^(work|general|arch|final|integrate)/.test(x)))
 await scenario('effort 2 (gate): fix reviewed by one lens only, no final gate on the fix or the integration', AG, { branch: 'feat', areas: [areas[0]], effort: 2 },
-  fixScript, (o, c) => o.gate_passed && c.includes('general:r1-p1#1') && !c.includes('arch:r1-p1#1') && !c.some(x => x.startsWith('final:')) && /\{\{effort\}\} = 2/.test(globalThis.tp))
+  fixScript, (o, c) => o.gate_passed && c.includes('general:r1-p1#1') && !c.includes('arch:r1-p1#1') && !c.some(x => x.startsWith('final:')) && /\{\{effort\}\} = Prototype/.test(globalThis.tp))
 await scenario('effort 3 (gate): configured lenses, no final gate on the fix', AG, { branch: 'feat', areas: [areas[0]], effort: 3 },
   fixScript, (o, c) => o.gate_passed && c.includes('arch:r1-p1#1') && !c.includes('final:r1-p1#1'))
 await scenario('effort 4 (gate): fix packages get the final gate', AG, { branch: 'feat', areas: [areas[0]], effort: 4 },

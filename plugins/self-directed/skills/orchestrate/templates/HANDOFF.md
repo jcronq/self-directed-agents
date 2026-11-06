@@ -4,7 +4,7 @@ Context a fresh session or host needs that isn't in the repo, git history or mem
 
 ## Goal and owner's standing instructions
 - Goal: <one line>
-- Effort level: <1 spike / 2 prototype / 3 solid / 4 autonomous, say whether the owner stated it or the lead guessed it; the owner's level is final>
+- Effort level: <Spike / Prototype / Solid / Autonomous, name it, say whether the owner stated it or the lead guessed it; the owner's level is final>
 - Authority granted: <owner's words, with the date>
 - Standing constraints: <list>
 

@@ -35,10 +35,11 @@ checked by someone other than its author, and "done" means the real thing ran.**
 
 ## 1a. Effort level
 
-Every request runs at one of four effort levels. The level sets how thorough
-the process is; everything after this section is scaled by it.
+Every request runs at one of four effort levels, named from least to most
+effort: Spike, Prototype, Solid, Autonomous. The level sets how thorough the
+process is; everything after this section is scaled by it.
 
-| | 1 · Spike | 2 · Prototype | 3 · Solid | 4 · Autonomous |
+| | Spike | Prototype | Solid | Autonomous |
 |---|---|---|---|---|
 | Goal | "Does the idea work?" | Usable demo | Mergeable feature | Build it properly, unattended |
 | Design stage | None | Short plan | Design + one review | Design + reviews, interfaces first |
@@ -55,22 +56,26 @@ Rules:
   and is final; correcting a guess takes effect from the next step.
 - If it's unstated, the size of the ask decides:
   - **Small, clear asks** (a question, a typo, a one-file bug fix, a doc or
-    config tweak, an obvious small change): guess the level, usually 1-2. State
-    the guess and how to change it in your first line (for example "Effort 2,
-    guessed; say 'effort 3' to change") and start at once.
+    config tweak, an obvious small change): guess the level, usually Spike or
+    Prototype. State the guess and how to change it in your first line (for
+    example "Effort: Prototype, guessed; say 'Solid' to change") and start at
+    once.
   - **Large, ambiguous or high-stakes asks** (new features, multi-package
     builds, anything outward-facing or hard to undo, or where the level would
     change the outcome): ask once, briefly, offering the four levels.
 - Say the level you are using in your first reply, whether stated, guessed or
   asked.
+- Always name the level (Spike, Prototype, Solid, Autonomous), never a bare
+  number: a number says nothing about what the level means. Say it that way in
+  every message, prompt, report and handoff.
 - Pass the level to every worker and reviewer, and record it in the handoff.
 - Nothing escalates silently. If a task guessed or set low proves bigger than
   expected, report it and suggest a level.
-- Reviewers at levels 2 and 3 block only on material problems; the rest are nits.
+- Reviewers at Prototype and Solid block only on material problems; the rest are nits.
 - Explicit settings (rounds, lenses, final gate) override the level's defaults.
 - These hold at every level:
   - never touch production or the owner's running services without isolation;
-  - never merge level-1 or level-2 work to the main branch unasked, unless the
+  - never merge Spike or Prototype work to the main branch unasked, unless the
     ask itself is to change the running system;
   - destructive or outward actions still need confirmation (§1);
   - evidence stays honest (§3); lower levels simply claim less.
@@ -78,7 +83,7 @@ Rules:
 ## 2. Definition of done
 
 Work is done only when **all** of the following hold at the chosen effort level
-(§1a; levels 1 to 3 define "done" by their table column and claim less):
+(§1a; Spike, Prototype and Solid define "done" by their table column and claim less):
 
 1. **It has landed:** the change is on the integration target (merged,
    deployed, released, whatever the profile says), or, where the profile
@@ -135,9 +140,9 @@ of the request second, and reflect at each stage:
 
 ## 4. Verification ladder
 
-Climb it in order, as far as the effort level (§1a) asks: level 1 stops at a
-smoke check, level 2 at main-path tests and one live happy path, level 3 at
-the full suite and scenario runs, level 4 climbs every rung. Rung 0 sets the reference point; each later rung catches
+Climb it in order, as far as the effort level (§1a) asks: Spike stops at a
+smoke check, Prototype at main-path tests and one live happy path, Solid at
+the full suite and scenario runs, Autonomous climbs every rung. Rung 0 sets the reference point; each later rung catches
 what the one below misses.
 
 A **round** is one integration pass: packages are built and reviewed, merged
@@ -171,11 +176,11 @@ Rules:
 
 ## 5. Independent review
 
-- **Scaled by effort (§1a).** Level 1 has no reviewers (the lead spot-checks),
-  level 2 one cheaper-model correctness pass, level 3 the cheaper-model lenses,
-  level 4 the lenses plus the final gate. The rules below apply in full at
-  level 4; lower levels take the subset their column names.
-- **Nothing ships unreviewed** at level 4, including your own "small" changes, docs,
+- **Scaled by effort (§1a).** Spike has no reviewers (the lead spot-checks),
+  Prototype one cheaper-model correctness pass, Solid the cheaper-model lenses,
+  Autonomous the lenses plus the final gate. The rules below apply in full at
+  Autonomous; lower levels take the subset their column names.
+- **Nothing ships unreviewed** at Autonomous, including your own "small" changes, docs,
   plans and merges.
 - **The reviewer is not the author.** Use a separate agent with fresh context.
   Give it the diff, the brief and the author's report, not your conclusions.
@@ -212,8 +217,8 @@ Rules:
 ## 6. The live use test (the acceptance gate)
 
 Tests check the code; the live use test checks the product. Its depth is set
-by the effort level (§1a): optional at level 1, one happy path at 2,
-scenarios with a rubric at 3, a full acceptance run at 4. An agent uses the
+by the effort level (§1a): optional at Spike, one happy path at Prototype,
+scenarios with a rubric at Solid, a full acceptance run at Autonomous. An agent uses the
 running system through its **real interface**, the way a user would, and
 reports what happened. (Other names for this: playtest, dogfooding,
 exploratory QA.)
@@ -286,8 +291,8 @@ layer under test:**
 ## 9. Running an organization of agents
 
 Give work to a whole organization of agents, not to a single one. At effort
-level 4 (§1a) this is the default shape; levels 1 to 3 use fewer workers (1, 1–2,
-parallel packages). One builder doing a whole
+Autonomous (§1a) this is the default shape; Spike, Prototype and Solid use fewer
+workers (1, 1–2, parallel packages). One builder doing a whole
 project serially is the failure to avoid: it becomes the long pole, and
 nothing gets reviewed until everything is built.
 
@@ -298,7 +303,7 @@ nothing gets reviewed until everything is built.
   - **Per-package reviewers:** one per lens (§5), first pass only.
   - **Integrator:** merges approved packages and runs the full suite.
   - **Live-use tester:** exercises the integrated product (§6).
-  - **Final gate (level 4):** one reviewer on the strongest model, run once on the
+  - **Final gate (Autonomous):** one reviewer on the strongest model, run once on the
     integrated result.
 
   Workers and first-pass reviewers run on the cheaper model (Sonnet); only the
@@ -321,7 +326,7 @@ nothing gets reviewed until everything is built.
 - **Review as a pipeline.** A package goes to its first-pass reviewers the
   moment it is done, while other packages are still building. Fix rounds stay
   per package: a finding in one package doesn't hold up or re-open the others.
-  Packages end at first-pass approval; the one final gate (level 4) runs on the
+  Packages end at first-pass approval; the one final gate (Autonomous) runs on the
   integrated result, not per package. (A single-package effort has one
   package, so its gate is the integrated gate.) Review rounds count per
   package, across its whole loop (§5).

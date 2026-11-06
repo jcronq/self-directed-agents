@@ -4,26 +4,26 @@ export const meta = {
   phases: [{ title: 'Build' }],
 }
 // args: {
-//   effort,                            // REQUIRED, 1-4 (manual §1a): sets the defaults below; a missing or invalid level throws
+//   effort,                            // REQUIRED: spike | prototype | solid | autonomous, case-insensitive; 1-4 also accepted (manual §1a): sets the defaults below; a missing or invalid level throws
 //   repo, profile, prompts,            // absolute paths; prompts = this skill's prompts/ dir
 //   id, base, brief,                   // package id, base branch/sha, brief text
 //   owned_files?: [], others?: [],     // files this package owns / files owned by parallel packages
 //   consumes?: '', provides?: '',      // interface this package builds against / commits first for dependents
-//   lenses?: ['general','arch','ux'],  // default by effort: 1 none, 2 ['general'], 3-4 ['general','arch']
-//   max_rounds?: ,                     // default by effort: 1 -> 0, 2 -> 1, 3 -> 3, 4 -> 4
+//   lenses?: ['general','arch','ux'],  // default by effort: spike none, prototype ['general'], solid and autonomous ['general','arch']
+//   max_rounds?: ,                     // default by effort: spike 0, prototype 1, solid 3, autonomous 4
 //   ports?: '9200-9999',               // give each concurrent run its own range
 //   scratch?: '/tmp/sd',               // each agent gets <scratch>/<id>/<label>
 //   worker_model?: 'sonnet',           // builds and revises
 //   review_model?: 'sonnet',           // first pass: every lens
 //   final_review_model?: 'opus',       // final gate: one whole-change review, only after every lens approves
 //   reviewer_model?,                   // back-compat alias for final_review_model
-//   final_gate?: 'package',            // default by effort: 4 -> 'package', 1-3 -> 'none'. 'package': this package gets its own final review.
+//   final_gate?: 'package',            // default by effort: autonomous 'package', the others 'none'. 'package': this package gets its own final review.
 //                                      // 'none': the loop ends at first-pass approval; the lead runs the one final gate
 //                                      // on the integrated result (organization runs; see manual §9)
 //   project?: ''
 // }
 // Explicit lenses, max_rounds and final_gate always override the effort defaults. effort itself has no default and is never guessed here (the lead decides, guessed or asked, and passes it):
-// callers written before the scale existed must now pass effort (4 reproduces their old behaviour apart from a 4th round).
+// callers written before the scale existed must now pass effort (autonomous reproduces their old behaviour apart from a 4th round).
 // One run is one package. Run it once per package, concurrently: each package reviews itself as soon as its build
 // finishes, so review is already a pipeline across packages and never waits for the other builds.
 // Review is two-tier; with final_gate 'none' only the first tier runs here and the final gate moves to the integrated result.
@@ -33,13 +33,16 @@ export const meta = {
 const A = args
 // Effort scale (manual §1a). block_on tells reviewers what they may block on.
 const EFFORT = {
-  1: { lenses: [], rounds: 0, final: 'none', block_on: 'blockers' },
-  2: { lenses: ['general'], rounds: 1, final: 'none', block_on: 'blockers' },
-  3: { lenses: ['general', 'arch'], rounds: 3, final: 'none', block_on: 'material' },
-  4: { lenses: ['general', 'arch'], rounds: 4, final: 'package', block_on: 'strict' },
+  spike: { lenses: [], rounds: 0, final: 'none', block_on: 'blockers' },
+  prototype: { lenses: ['general'], rounds: 1, final: 'none', block_on: 'blockers' },
+  solid: { lenses: ['general', 'arch'], rounds: 3, final: 'none', block_on: 'material' },
+  autonomous: { lenses: ['general', 'arch'], rounds: 4, final: 'package', block_on: 'strict' },
 }
-if (!Number.isInteger(A.effort) || !Object.hasOwn(EFFORT, A.effort)) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use 1 spike, 2 prototype, 3 solid, 4 autonomous)`)
-const E = EFFORT[A.effort]
+const EFFORT_NAMES = Object.keys(EFFORT)
+const effortKey = typeof A.effort === 'string' ? A.effort.toLowerCase() : Number.isInteger(A.effort) ? EFFORT_NAMES[A.effort - 1] : undefined
+if (!EFFORT_NAMES.includes(effortKey)) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use ${EFFORT_NAMES.join(', ')})`)
+const E = EFFORT[effortKey]
+const EFFORT_NAME = effortKey[0].toUpperCase() + effortKey.slice(1)
 const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md' }
 const LENSES = A.lenses || E.lenses
 for (const k of ['repo', 'profile', 'prompts', 'id', 'base', 'brief']) if (!A[k]) throw new Error(`missing arg: ${k}`)
@@ -75,7 +78,7 @@ const scratchFor = (label) => `${A.scratch || '/tmp/sd'}/${A.id}/${label.replace
 
 // Each agent reads its role file itself, so the prompts live in one place.
 const vars = (extra) => Object.entries({
-  effort: A.effort, block_on: E.block_on, project: A.project || A.repo, repo: A.repo, profile: A.profile, id: A.id, base: A.base, brief: A.brief,
+  effort: EFFORT_NAME, block_on: E.block_on, project: A.project || A.repo, repo: A.repo, profile: A.profile, id: A.id, base: A.base, brief: A.brief,
   owned_files: (A.owned_files || []).join(', ') || '(not restricted)',
   others: (A.others || []).join(', ') || '(none)',
   consumes: A.consumes || '(none)', provides: A.provides || '(none stated)', ...extra,
@@ -116,7 +119,7 @@ phase('Build')
 const notes = []
 let work = await run('worker.md', `work:${A.id}`, { branch: `sd/${A.id}` }, { schema: WORK, model: WORKER, isolation: 'worktree' })
 if (!work) notes.push('worker failed; nothing to review')
-if (work && MAX === 0) notes.push(`effort ${A.effort}: no review ran; the lead must spot-check`)
+if (work && MAX === 0) notes.push(`effort ${EFFORT_NAME}: no review ran; the lead must spot-check`)
 const history = []
 let approved = false
 for (let round = 1; work && round <= MAX; round++) {
@@ -133,4 +136,4 @@ for (let round = 1; work && round <= MAX; round++) {
   if (!next) { notes.push(`round ${round + 1}: revision failed twice; stopping unapproved`); break }
   work = next
 }
-return { id: A.id, effort: A.effort, approved, unreviewed: !!work && history.length === 0 && MAX === 0, final_gate: FINAL_GATE, review_rounds: history.length, branch: work?.branch, report: work, last_review: history[history.length - 1] || null, notes }
+return { id: A.id, effort: EFFORT_NAME, approved, unreviewed: !!work && history.length === 0 && MAX === 0, final_gate: FINAL_GATE, review_rounds: history.length, branch: work?.branch, report: work, last_review: history[history.length - 1] || null, notes }

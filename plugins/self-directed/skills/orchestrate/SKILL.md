@@ -12,13 +12,13 @@ You are the manager throughout: plan, route, review and report, and leave the bu
 (manual §9).
 
 ## Effort level (required)
-The skill takes `effort` (1 spike, 2 prototype, 3 solid, 4 autonomous), defined in manual §1a. The owner's level wins: a level the owner states or sets overrides a guess and is final, and a correction takes effect from the next step.
-- If it's unstated and the ask is **small and clear** (a question, a typo, a one-file fix, a doc or config tweak), guess it (usually 1-2), say so in your first line with how to change it (e.g. "Effort 2, guessed; say 'effort 3' to change"), and start at once.
+The skill takes `effort` (`spike`, `prototype`, `solid` or `autonomous`, case-insensitive; the integers 1-4 are still accepted but always name the level in messages), defined in manual §1a. The owner's level wins: a level the owner states or sets overrides a guess and is final, and a correction takes effect from the next step.
+- If it's unstated and the ask is **small and clear** (a question, a typo, a one-file fix, a doc or config tweak), guess it (usually Spike or Prototype), say so in your first line with how to change it (e.g. "Effort: Prototype, guessed; say 'Solid' to change"), and start at once.
 - If the ask is **large, ambiguous or high-stakes** (new features, multi-package builds, anything outward-facing or hard to undo, or where the level would change the outcome), ask the owner once, briefly, offering the four levels, **before planning**.
 - State the level in the plan either way, and pass it to every worker and reviewer (`effort` arg of both workflows).
 - The workflow scripts never guess: they require an explicit `effort` arg and throw without one. You decide (guessed or asked) and pass it.
 - Nothing escalates silently: if a task guessed low proves bigger, report it and suggest a level.
-- The level scales everything below: packages and waves (§1), lenses, rounds and final gate (§2), live-test depth (§4), and landing (§5; level 1 and 2 work never goes to the main branch unasked, unless the ask itself is to change the running system).
+- The level scales everything below: packages and waves (§1), lenses, rounds and final gate (§2), live-test depth (§4), and landing (§5; Spike and Prototype work never goes to the main branch unasked, unless the ask itself is to change the running system).
 
 ## 0. Ground yourself
 - Find the project profile (`PROJECT_PROFILE.md` at the repo root, or wherever the project's CLAUDE.md/AGENTS.md points).
@@ -41,8 +41,8 @@ The skill takes `effort` (1 spike, 2 prototype, 3 solid, 4 autonomous), defined 
 **With the Workflow tool** (when it exists and the owner opted in; invoking this skill counts as opting in to
 its workflows): run `workflows/reviewed-build.js` once per package, independent packages in parallel, with args
 `{effort, repo, profile, prompts: "<this skill dir>/prompts", id, base, brief, owned_files, others, consumes, provides, lenses, ports}`
-(`effort` is required: a missing or invalid level makes the script throw. It sets the defaults for `lenses`, `max_rounds` and `final_gate`: 1 none/0/`none`, 2 `general` only/1/`none`, 3 configured lenses/3/`none`, 4 configured lenses/4/`package`. Explicit args override. Callers written before the scale must now pass `effort`; 4 matches their old behaviour. Optional: `final_gate` `"package"` (default) or `"none"`; `review_model` default `sonnet`, `final_review_model` default `opus`; `reviewer_model` is an alias for the latter).
-For an organization (more than one package, effort 4) set `final_gate: "none"`: each package's loop ends at first-pass
+(`effort` is required: a missing or invalid level makes the script throw. It sets the defaults for `lenses`, `max_rounds` and `final_gate`: Spike none/0/`none`, Prototype `general` only/1/`none`, Solid configured lenses/3/`none`, Autonomous configured lenses/4/`package`. Explicit args override. Callers written before the scale must now pass `effort`; `autonomous` matches their old behaviour. Optional: `final_gate` `"package"` (default) or `"none"`; `review_model` default `sonnet`, `final_review_model` default `opus`; `reviewer_model` is an alias for the latter).
+For an organization (more than one package, Autonomous) set `final_gate: "none"`: each package's loop ends at first-pass
 approval, and the one Opus final gate runs on the integrated result (step 3). A single package keeps `"package"`;
 that gate is the integrated gate.
 Each package reviews itself the moment its build finishes, while other packages are still building; don't wait for all
@@ -53,18 +53,18 @@ port range and scratch dir.
 
 **Without it:** run the same loop by hand with subagents:
 worker (`prompts/_common.md` + `prompts/worker.md`) → reviewers in parallel, one per lens, each in a fresh agent →
-if any review blocks, `prompts/revise.md` with the problems verbatim → repeat, at most the level's round cap (§1a: 0, 1, 3, 4).
-Review is two-tier: workers and lens reviewers run on Sonnet. At effort 4 only, once every lens approves, one final reviewer
+if any review blocks, `prompts/revise.md` with the problems verbatim → repeat, at most the level's round cap (§1a: Spike 0, Prototype 1, Solid 3, Autonomous 4).
+Review is two-tier: workers and lens reviewers run on Sonnet. At Autonomous only, once every lens approves, one final reviewer
 (`prompts/final-reviewer.md`, Opus) reviews the whole change (for an organization, the integrated result, not each package); if it blocks, its problems go back to the author
 verbatim and the lenses and final gate run again. The round cap (per the level) is per package and covers its whole loop. Approval requires every
-lens, and at effort 4 then the final gate. Require the schemas in `schemas.md` from every agent and reject reports without counts.
+lens, and at Autonomous then the final gate. Require the schemas in `schemas.md` from every agent and reject reports without counts.
 
 Never integrate unapproved work. List it for the owner with its last review.
 
 ## 3. Integrate
 `prompts/integrator.md` merges approved branches into one integration branch as they land, runs the one full suite,
-followed by the lens reviews. At effort 4 only, the one final gate (`prompts/final-reviewer.md`, Opus) then runs once, on this integrated
-result; levels 1 to 3 have no final gate. In `acceptance-gate.js`, pass `final_gate: "none"` so fix packages end at first-pass approval; at effort 4 the integrated
+followed by the lens reviews. At Autonomous only, the one final gate (`prompts/final-reviewer.md`, Opus) then runs once, on this integrated
+result; Spike, Prototype and Solid have no final gate. In `acceptance-gate.js`, pass `final_gate: "none"` so fix packages end at first-pass approval; at Autonomous the integrated
 branch gets the final gate.
 Push it right away as a draft PR if the profile allows pushing. The push doesn't wait for the gate; the merge does.
 

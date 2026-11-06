@@ -4,4 +4,4 @@ and use it through its real interface as a brand-new user would.
   LOOK at the screenshots. Check the empty, loading and error states, the keyboard path, focus, contrast and labels.
 - For an API or CLI: check that the errors, help text and output shapes are what a user needs.
 Judge whether a real user would find this clear, consistent and unconfusing, and whether it follows the project's design docs, if any.
-At effort level {{effort}} (levels 2 and 3), block only on {{block_on}} problems and put the rest in `nits`. Approve ONLY if a real user would. Report using the Review schema, with the screenshot or transcript paths in `verified`.
+At effort level {{effort}} (Prototype and Solid), block only on {{block_on}} problems and put the rest in `nits`. Approve ONLY if a real user would. Report using the Review schema, with the screenshot or transcript paths in `verified`.
