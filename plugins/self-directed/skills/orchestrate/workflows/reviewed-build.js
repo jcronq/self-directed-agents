@@ -22,7 +22,7 @@ export const meta = {
 //                                      // on the integrated result (organization runs; see manual §9)
 //   project?: ''
 // }
-// Explicit lenses, max_rounds and final_gate always override the effort defaults. effort itself has no default:
+// Explicit lenses, max_rounds and final_gate always override the effort defaults. effort itself has no default and is never guessed here (the lead decides, guessed or asked, and passes it):
 // callers written before the scale existed must now pass effort (4 reproduces their old behaviour apart from a 4th round).
 // One run is one package. Run it once per package, concurrently: each package reviews itself as soon as its build
 // finishes, so review is already a pipeline across packages and never waits for the other builds.

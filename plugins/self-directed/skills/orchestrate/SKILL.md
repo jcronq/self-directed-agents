@@ -12,10 +12,12 @@ You are the manager throughout: plan, route, review and report, and leave the bu
 (manual §9).
 
 ## Effort level (required)
-The skill takes `effort` (1 spike, 2 prototype, 3 solid, 4 autonomous), defined in manual §1a. The owner states it per request.
-- If it's missing, ask the owner once, briefly, offering the four levels, **before planning**. Never infer it.
-- Say the level in your first reply, and pass it to every worker and reviewer (`effort` arg of both workflows).
-- Nothing escalates silently: if lower-effort work hits a real problem, report it and ask whether to raise the level.
+The skill takes `effort` (1 spike, 2 prototype, 3 solid, 4 autonomous), defined in manual §1a. The owner's level wins: a level the owner states or sets overrides a guess and is final, and a correction takes effect from the next step.
+- If it's unstated and the ask is **small and clear** (a question, a typo, a one-file fix, a doc or config tweak), guess it (usually 1-2), say so in your first line with how to change it (e.g. "Effort 2, guessed; say 'effort 3' to change"), and start at once.
+- If the ask is **large, ambiguous or high-stakes** (new features, multi-package builds, anything outward-facing or hard to undo, or where the level would change the outcome), ask the owner once, briefly, offering the four levels, **before planning**.
+- State the level in the plan either way, and pass it to every worker and reviewer (`effort` arg of both workflows).
+- The workflow scripts never guess: they require an explicit `effort` arg and throw without one. You decide (guessed or asked) and pass it.
+- Nothing escalates silently: if a task guessed low proves bigger, report it and suggest a level.
 - The level scales everything below: packages and waves (§1), lenses, rounds and final gate (§2), live-test depth (§4), and landing (§5; level 1 and 2 work never goes to the main branch unasked).
 
 ## 0. Ground yourself

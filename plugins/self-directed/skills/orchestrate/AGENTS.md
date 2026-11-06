@@ -51,17 +51,27 @@ the process is; everything after this section is scaled by it.
 | Report | One line | Short | Standard | Full, with evidence |
 
 Rules:
-- The owner states the level per request. If it's unstated, ask once, briefly,
-  offering the four levels. Never infer it.
-- Say the level you are using in your first reply.
+- The owner's level wins. A level the owner states or sets overrides a guess
+  and is final; correcting a guess takes effect from the next step.
+- If it's unstated, the size of the ask decides:
+  - **Small, clear asks** (a question, a typo, a one-file bug fix, a doc or
+    config tweak, an obvious small change): guess the level, usually 1-2. State
+    the guess and how to change it in your first line (for example "Effort 2,
+    guessed; say 'effort 3' to change") and start at once.
+  - **Large, ambiguous or high-stakes asks** (new features, multi-package
+    builds, anything outward-facing or hard to undo, or where the level would
+    change the outcome): ask once, briefly, offering the four levels.
+- Say the level you are using in your first reply, whether stated, guessed or
+  asked.
 - Pass the level to every worker and reviewer, and record it in the handoff.
-- Nothing escalates silently. If lower-effort work hits a real problem, report
-  it and ask whether to raise the level.
+- Nothing escalates silently. If a task guessed or set low proves bigger than
+  expected, report it and suggest a level.
 - Reviewers at levels 2 and 3 block only on material problems; the rest are nits.
 - Explicit settings (rounds, lenses, final gate) override the level's defaults.
 - These hold at every level:
   - never touch production or the owner's running services without isolation;
-  - never merge level-1 or level-2 work to the main branch unasked;
+  - never merge level-1 or level-2 work to the main branch unasked, unless the
+    ask itself is to change the running system;
   - destructive or outward actions still need confirmation (§1);
   - evidence stays honest (§3); lower levels simply claim less.
 

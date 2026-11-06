@@ -22,7 +22,7 @@ export const meta = {
 //   project?
 // Triage also runs on final_review_model (it reproduces findings and decides the gate).
 // }
-// Explicit max_rounds, review_rounds, final_gate and fix_lenses override the effort defaults; effort itself has no default.
+// Explicit max_rounds, review_rounds, final_gate and fix_lenses override the effort defaults; effort itself has no default and is never guessed here (the lead decides, guessed or asked, and passes it).
 // Effort also sets the live-run depth (1 one run, no fixes; 2 happy path, blockers fixed; 3 scenarios; 4 full acceptance run)
 // and what triage may send to fix packages (2: blockers only; 3: blockers and majors; 4: as the gate rule says).
 // The workflow never pushes or files issues. It returns issues_to_file and the final branch for the lead.
