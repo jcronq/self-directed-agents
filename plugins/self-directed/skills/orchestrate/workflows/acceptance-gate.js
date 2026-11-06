@@ -34,7 +34,7 @@ const EFFORT = {
   3: { lenses: ['general', 'arch'], review_rounds: 3, rounds: 3, final: 'none', block_on: 'material', depth: 'scenarios covering each area, judged by the rubric', fix_scope: 'blockers and majors; minors go to issues_to_file' },
   4: { lenses: ['general', 'arch'], review_rounds: 4, rounds: 4, final: 'package', block_on: 'strict', depth: 'full acceptance run of every area; keep the evidence', fix_scope: 'every finding the gate rule requires fixed' },
 }
-if (!EFFORT[A.effort]) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use 1 spike, 2 prototype, 3 solid, 4 autonomous)`)
+if (!Number.isInteger(A.effort) || !Object.hasOwn(EFFORT, A.effort)) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use 1 spike, 2 prototype, 3 solid, 4 autonomous)`)
 const E = EFFORT[A.effort]
 const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md' }
 for (const k of ['repo', 'profile', 'prompts', 'branch', 'rubric', 'gate']) if (!A[k]) throw new Error(`missing arg: ${k}`)
@@ -43,6 +43,7 @@ const FIX_LENSES = A.fix_lenses || E.lenses
 for (const l of FIX_LENSES) if (!ROLE[l]) throw new Error(`unknown lens: ${l}`)
 const FINAL_GATE = A.final_gate || E.final
 if (!['package', 'none'].includes(FINAL_GATE)) throw new Error(`unknown final_gate: ${FINAL_GATE} (use package, none)`)
+if (!FIX_LENSES.length && (A.review_rounds ?? E.review_rounds) > 0) throw new Error('fix_lenses is empty but review rounds are above 0: nothing could approve (lenses)')
 const MAX = A.max_rounds ?? E.rounds, REVIEW_ROUNDS = A.review_rounds ?? E.review_rounds
 const WORKER = A.worker_model || 'sonnet', REVIEW_M = A.review_model || 'sonnet', FINAL = A.final_review_model || A.reviewer_model || 'opus', TESTER = A.tester_model || FINAL
 const SEV = ['blocker', 'major', 'minor', 'out_of_scope']
@@ -81,7 +82,7 @@ const nitsText = (rv) => (rv.nits || []).map(n => `- ${n}`).join('\n') || '(none
 async function reviewed(id, phaseName, base, brief, doWork, reviseRole, schema, lenses, extra = {}, finalGate = 'package') {
   let work = await retry(doWork), last = null
   if (!work) return { id, approved: false, work: null, last, note: 'worker failed twice' }
-  if (REVIEW_ROUNDS === 0) return { id, approved: true, unreviewed: true, work, last, note: `effort ${A.effort}: no review ran` }
+  if (REVIEW_ROUNDS === 0) return { id, approved: false, unreviewed: true, work, last, note: `effort ${A.effort}: no review ran` }
   for (let round = 1; round <= REVIEW_ROUNDS; round++) {
     const one = (l) => run(ROLE[l], `${l}:${id}#${round}`, phaseName, { id, base, brief, branch: work.branch, report: work }, { schema: REVIEW_SCHEMA, model: REVIEW_M })
     let rs = await Promise.all(lenses.map(one))
@@ -141,8 +142,8 @@ for (let round = 1; round <= MAX && !passed; round++) {
         { schema: WORK, model: WORKER, isolation: 'worktree' }),
       'revise.md', WORK, FIX_LENSES, {}, FINAL_GATE).then(r => ({ ...r, finding_ids: p.finding_ids }))
   }))
-  entry.fixes = results.map(r => ({ id: r.id, approved: r.approved, branch: r.work?.branch, note: r.note, last_review: r.approved ? undefined : r.last }))
-  const ok = results.filter(r => r.approved)
+  entry.fixes = results.map(r => ({ id: r.id, approved: r.approved, unreviewed: r.unreviewed, branch: r.work?.branch, note: r.note, last_review: r.approved ? undefined : r.last }))
+  const ok = results.filter(r => r.approved || r.unreviewed) // unreviewed (no-review levels) is integrated but never reported as approved
   if (!ok.length) { entry.stopped = 'no fix package was approved'; break }
 
   phase('Integrate')
@@ -152,7 +153,7 @@ for (let round = 1; round <= MAX && !passed; round++) {
     (n) => run('integrator.md', `integrate:${id}${n > 1 ? '-retry' : ''}`, 'Integrate', { id, base: branch, branch: att(`sd/${id}`, n), branches, problems: '', previous_branch: '' },
       { schema: INTEG, model: WORKER, isolation: 'worktree' }),
     'integrator.md', INTEG, FIX_LENSES, { branches }, E.final)
-  if (!integ.approved) { entry.integration = integ.note || 'not approved'; break }
+  if (!integ.approved && !integ.unreviewed) { entry.integration = integ.note || 'not approved'; break }
   branch = integ.work.branch // the next round tests (and builds on) the integrated branch
   ok.forEach(r => fixed.push(...tri.confirmed.filter(f => r.finding_ids.includes(f.id)).map(f => ({ id: f.id, title: f.title, repro: f.repro }))))
 }

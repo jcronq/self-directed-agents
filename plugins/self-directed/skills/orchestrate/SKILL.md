@@ -51,19 +51,19 @@ port range and scratch dir.
 
 **Without it:** run the same loop by hand with subagents:
 worker (`prompts/_common.md` + `prompts/worker.md`) → reviewers in parallel, one per lens, each in a fresh agent →
-if any review blocks, `prompts/revise.md` with the problems verbatim → repeat, at most 3 rounds.
-Review is two-tier: workers and lens reviewers run on Sonnet. Only when every lens approves, one final reviewer
+if any review blocks, `prompts/revise.md` with the problems verbatim → repeat, at most the level's round cap (§1a: 0, 1, 3, 4).
+Review is two-tier: workers and lens reviewers run on Sonnet. At effort 4 only, once every lens approves, one final reviewer
 (`prompts/final-reviewer.md`, Opus) reviews the whole change (for an organization, the integrated result, not each package); if it blocks, its problems go back to the author
-verbatim and the lenses and final gate run again. The 3-round cap is per package and covers its whole loop. Approval requires every
-lens and then the final gate. Require the schemas in `schemas.md` from every agent and reject reports without counts.
+verbatim and the lenses and final gate run again. The round cap (per the level) is per package and covers its whole loop. Approval requires every
+lens, and at effort 4 then the final gate. Require the schemas in `schemas.md` from every agent and reject reports without counts.
 
 Never integrate unapproved work. List it for the owner with its last review.
 
 ## 3. Integrate
 `prompts/integrator.md` merges approved branches into one integration branch as they land, runs the one full suite,
-followed by the lens reviews. Then the one final gate (`prompts/final-reviewer.md`, Opus) runs once, on this integrated
-result. In `acceptance-gate.js`, pass `final_gate: "none"` so fix packages end at first-pass approval; the integrated
-branch always gets the final gate.
+followed by the lens reviews. At effort 4 only, the one final gate (`prompts/final-reviewer.md`, Opus) then runs once, on this integrated
+result; levels 1 to 3 have no final gate. In `acceptance-gate.js`, pass `final_gate: "none"` so fix packages end at first-pass approval; at effort 4 the integrated
+branch gets the final gate.
 Push it right away as a draft PR if the profile allows pushing. The push doesn't wait for the gate; the merge does.
 
 ## 4. Live use test (the acceptance gate)

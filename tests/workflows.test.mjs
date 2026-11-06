@@ -232,3 +232,11 @@ await scenario('effort 4 (gate): fix packages get the final gate', AG, { branch:
 await scenario('effort 4 (gate): 4 review rounds per fix', AG, { branch: 'feat', areas: [areas[0]], effort: 4 },
   (l, p) => l.startsWith('test:') || l.startsWith('triage') || l.startsWith('work:') ? fixScript(l, p) : review(false),
   (o, c) => c.filter(x => /^arch:r1-p1#/.test(x)).length === 4)
+await rejects("build: effort '3' (string) rejected", RB, { id: 'et', base: 'main', brief: 'b', effort: '3' }, /effort/)
+await rejects("build: effort 'constructor' rejected", RB, { id: 'ec', base: 'main', brief: 'b', effort: 'constructor' }, /effort/)
+await rejects("gate: effort '3' (string) rejected", AG, { branch: 'feat', areas, effort: '3' }, /effort/)
+await rejects("gate: effort 'constructor' rejected", AG, { branch: 'feat', areas, effort: 'constructor' }, /effort/)
+await rejects('build: empty lenses with rounds above 0 rejected', RB, { id: 'el', base: 'main', brief: 'b', effort: 3, lenses: [] }, /lenses/)
+await rejects('gate: empty fix_lenses with review rounds above 0 rejected', AG, { branch: 'feat', areas, effort: 3, fix_lenses: [] }, /lenses/)
+await scenario('gate: no-review fix is unreviewed, not approved, but is still integrated', AG, { branch: 'feat', areas: [areas[0]], effort: 2, review_rounds: 0, fix_lenses: [] },
+  fixScript, (o, c) => o.gate_passed && o.rounds[0].fixes[0].approved === false && o.rounds[0].fixes[0].unreviewed === true && c.includes('integrate:int-r1'))

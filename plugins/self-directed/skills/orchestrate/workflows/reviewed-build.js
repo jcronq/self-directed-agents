@@ -38,12 +38,13 @@ const EFFORT = {
   3: { lenses: ['general', 'arch'], rounds: 3, final: 'none', block_on: 'material' },
   4: { lenses: ['general', 'arch'], rounds: 4, final: 'package', block_on: 'strict' },
 }
-if (!EFFORT[A.effort]) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use 1 spike, 2 prototype, 3 solid, 4 autonomous)`)
+if (!Number.isInteger(A.effort) || !Object.hasOwn(EFFORT, A.effort)) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use 1 spike, 2 prototype, 3 solid, 4 autonomous)`)
 const E = EFFORT[A.effort]
 const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md' }
 const LENSES = A.lenses || E.lenses
 for (const k of ['repo', 'profile', 'prompts', 'id', 'base', 'brief']) if (!A[k]) throw new Error(`missing arg: ${k}`)
 for (const l of LENSES) if (!ROLE[l]) throw new Error(`unknown lens: ${l} (use ${Object.keys(ROLE).join(', ')})`)
+if (!LENSES.length && A.max_rounds !== 0 && (A.max_rounds ?? E.rounds) > 0) throw new Error('lenses is empty but review rounds are above 0: nothing could approve')
 const FINAL_GATE = A.final_gate || E.final
 if (!['package', 'none'].includes(FINAL_GATE)) throw new Error(`unknown final_gate: ${FINAL_GATE} (use package, none)`)
 const MAX = A.max_rounds ?? E.rounds

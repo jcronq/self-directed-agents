@@ -194,7 +194,7 @@ Rules:
     integrated gate.
   - **If the final gate blocks,** its problems go back to the author
     verbatim, then the first-pass lenses run again, then the final gate.
-- **Bound the rounds** (3–4), counted per package across its whole loop,
+- **Bound the rounds** (per §1a), counted per package across its whole loop,
   first pass and final gate together. Reviewer problems, from either tier, go back to the
   author verbatim as *blocking* items. Once you hit the cap, don't integrate;
   report the unapproved work to the owner with the last review.
@@ -288,7 +288,7 @@ nothing gets reviewed until everything is built.
   - **Per-package reviewers:** one per lens (§5), first pass only.
   - **Integrator:** merges approved packages and runs the full suite.
   - **Live-use tester:** exercises the integrated product (§6).
-  - **Final gate:** one reviewer on the strongest model, run once on the
+  - **Final gate (level 4):** one reviewer on the strongest model, run once on the
     integrated result.
 
   Workers and first-pass reviewers run on the cheaper model (Sonnet); only the
@@ -311,7 +311,7 @@ nothing gets reviewed until everything is built.
 - **Review as a pipeline.** A package goes to its first-pass reviewers the
   moment it is done, while other packages are still building. Fix rounds stay
   per package: a finding in one package doesn't hold up or re-open the others.
-  Packages end at first-pass approval; the one final gate runs on the
+  Packages end at first-pass approval; the one final gate (level 4) runs on the
   integrated result, not per package. (A single-package effort has one
   package, so its gate is the integrated gate.) Review rounds count per
   package, across its whole loop (§5).
