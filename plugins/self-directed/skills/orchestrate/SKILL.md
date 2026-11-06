@@ -18,7 +18,7 @@ The skill takes `effort` (1 spike, 2 prototype, 3 solid, 4 autonomous), defined 
 - State the level in the plan either way, and pass it to every worker and reviewer (`effort` arg of both workflows).
 - The workflow scripts never guess: they require an explicit `effort` arg and throw without one. You decide (guessed or asked) and pass it.
 - Nothing escalates silently: if a task guessed low proves bigger, report it and suggest a level.
-- The level scales everything below: packages and waves (§1), lenses, rounds and final gate (§2), live-test depth (§4), and landing (§5; level 1 and 2 work never goes to the main branch unasked).
+- The level scales everything below: packages and waves (§1), lenses, rounds and final gate (§2), live-test depth (§4), and landing (§5; level 1 and 2 work never goes to the main branch unasked, unless the ask itself is to change the running system).
 
 ## 0. Ground yourself
 - Find the project profile (`PROJECT_PROFILE.md` at the repo root, or wherever the project's CLAUDE.md/AGENTS.md points).
