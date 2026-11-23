@@ -95,7 +95,9 @@ Work is done only when **all** of the following hold at the chosen effort level
    show for it.
 4. **Independent review approved it** (§5): every first-pass lens, then the final gate.
 5. **Leftovers are filed** as issues or listed for the owner. Nothing is
-   silently dropped.
+   silently dropped. Every limitation, race or deferred item written into docs
+   cites its ticket id before review is requested ("still open" with no ticket
+   is a leftover nobody owns).
 6. **You confirmed it yourself before closing:** you checked that the result
    does what was asked, not just that the steps ran. Ask the owner only when
    you cannot verify it yourself.
@@ -165,6 +167,14 @@ review or a live-use test starts a new round.
 Rules:
 - **Test-first.** Write the test, watch it fail, then implement. A new test must
   fail on the old code, or it doesn't prove anything.
+- **A new test must fail through its assertion.** An import error or a missing
+  symbol doesn't count: show the failure on the old code at the `assert`. For a
+  guard, mutate the condition and show the test fails. (A collision test once
+  compared a set to itself and could never fail.)
+- **Validate generated artifacts with their standard validator** (OpenAPI, JSON
+  schema, lockfiles, config), not only against our own snapshot. (An OpenAPI
+  file with 63 unresolvable refs passed the snapshot test.) The profile names
+  the validators.
 - **Never weaken, skip or delete tests, or loosen assertions, to get green.**
   If a test is genuinely wrong, say why, fix it, and have the review cover it.
 - **A green suite does not mean the product works.** A large suite passing
@@ -190,11 +200,26 @@ Rules:
   problem remains.
 - **Split reviewers by lens.** Each lens gets its own reviewer, and the change
   needs every one of them to approve:
-  - **Correctness/regression/security** (always).
+  - **Correctness/regression/security** (always). It tries to negate each new
+    assertion; a test that cannot fail is a blocker (§4). It reviews every new
+    check-then-act path (exists-then-create, busy-then-run, read-then-write) for
+    races and for what a concurrent loser can skip; known races are written down
+    with a ticket. (A busy-thread race and a thread-creation race once skipped
+    authorization.)
   - **Architecture invariants** (always for code): a dedicated reviewer whose
     *only* job is the project's written invariants. A general reviewer who
-    treats architecture as one checklist item lets violations through.
+    treats architecture as one checklist item lets violations through. It also
+    greps the project's SPEC for "one function", "only", "never", "always" and
+    "the one" statements and checks every call site, new code included. (An
+    AG-UI route once skipped the one authorization function the SPEC promised.)
   - **UX/product** when the change is user-facing.
+  - **Documentation truth** whenever the change touches docs, or behaviour that
+    docs describe: a reviewer checks every claim in the SPEC, README and guides
+    against the final code and the latest evidence; that `file:line` and path
+    references exist; that nothing still says "not yet run", "open decision" or
+    "pending" after it was run or decided; and that every owner decision made in
+    the effort is recorded as decided. (A stale "not re-run" sentence, two
+    decisions still called open and a SPEC naming a moved file all got through.)
 - **Review in two tiers.** Where you can choose models, workers and first-pass
   reviewers use the cheaper, faster model (Sonnet); the final gate uses the
   strongest (Opus).
@@ -209,6 +234,11 @@ Rules:
     integrated gate.
   - **If the final gate blocks,** its problems go back to the author
     verbatim, then the first-pass lenses run again, then the final gate.
+- **Ask outside reviewers for their rules.** When humans or bots outside the
+  team review our PRs, ask once for their criteria (thresholds, lenses, what
+  blocks), record them in the profile's "External reviewers' rules", and run
+  them as a pre-review gate. (A review bot blocked on more than three open
+  minors; we learned it from a CHANGES REQUESTED.)
 - **Bound the rounds** (per §1a), counted per package across its whole loop,
   first pass and final gate together. Reviewer problems, from either tier, go back to the
   author verbatim as *blocking* items. Once you hit the cap, don't integrate;
@@ -287,6 +317,19 @@ layer under test:**
   present on the target. Check at line level, because patch IDs change after
   conflict resolution, so `git cherry` alone overstates what's missing.
 - Merge only on real green CI. Never use an admin override over a red check.
+- **Hygiene pass after every merge of the main branch.** Check for tracked
+  generated or binary files (`git ls-files` for `*.pyc`, `*.output`, build
+  dirs), that docs trees and tables (README layout trees, tables of contents)
+  are still well-formed, that lock and requirements files agree, and that line
+  references still point at the right lines. (A committed 979-line output file
+  and a README tree with two last-sibling markers both came in through merges.)
+- **Reply to every reviewer comment in the same turn you see it,** and resolve
+  each thread once it's addressed.
+- **Watch every PR you own.** Run a watcher (`extras/pr-watch/`) that wakes you
+  on new heads, checks, reviews, comments, unresolved threads and merge-state
+  changes, and that reports comments and threads already unanswered at start
+  instead of baselining them. (A reviewer's question went unanswered for five
+  days because the watcher baselined it.)
 
 ## 9. Running an organization of agents
 
@@ -398,6 +441,9 @@ nothing gets reviewed until everything is built.
 - **Lead with what needs them:** decisions, logins, approvals. Then cover what
   was done and verified, what's in flight, and what's next.
 - **Keep it short,** with SHAs, PR links, counts and paths instead of prose.
+- **Before you say "ready to merge",** check the PR itself: no unresolved
+  review threads, an approving review on the CURRENT head (a push can dismiss
+  approvals), and required checks green on that head.
 - **Report faithfully.** Failures come with their output, skipped steps are
   named, and unapproved work is listed as unapproved.
 - If you changed a rule or a gate on your own judgment, say so, and say how to
