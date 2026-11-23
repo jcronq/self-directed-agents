@@ -79,7 +79,7 @@ Push it right away as a draft PR if the profile allows pushing. The push doesn't
 - File `issues_to_file` yourself (or list them, if you're not authorized to file).
 
 ## 5. Land and audit
-- Merge per the profile's procedure, on real green CI only, after confirming CI's pass-count line. Before you say "ready to merge": no unresolved review threads, an approving review on the current head, required checks green on that head (manual §11). Reply to and resolve reviewer threads as you go, and run `extras/pr-watch/` for each PR you own (manual §8).
+- Merge per the profile's procedure, on real green CI only, after confirming CI's pass-count line. Before you say "ready to merge": no unresolved review threads, an approving review on the current head, required checks green on that head (manual §11). Reply to and resolve reviewer threads as you go, and run `scripts/pr-watch.sh` (next to `heavy.sh`; see `scripts/pr-watch.md`) for each PR you own (manual §8).
 - Audit: list this effort's branches that aren't merged into the target, and check that their changes are actually
   on the target, line by line. Only then say "merged".
 - Restart or redeploy what the profile says should run on the target.

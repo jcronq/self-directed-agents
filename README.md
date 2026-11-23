@@ -31,8 +31,9 @@ package in parallel, reviewers gate each package as it finishes, and an integrat
 | `templates/HANDOFF.md`, `templates/memory-note.md` | Resume a long effort on a fresh session or host; record a correction | Any agent |
 | `prompts/` + `schemas.md` | Role prompts (worker, lens reviewers: correctness, architecture, UX, documentation truth; final reviewer, use tester, triage, integrator) and the report schemas | Any orchestrator, or by hand |
 | `plugins/self-directed/` | Claude Code plugin: `orchestrate` and `project-profile` skills, plus two Workflow scripts (`reviewed-build`, `acceptance-gate`) | Claude Code |
-| `extras/pr-watch/` | Optional PR watcher: wakes the agent on new heads, checks, reviews, comments, unresolved threads and merge-state changes, and reports already-unanswered comments at start | `gh`, `jq`, bash |
+| `plugins/self-directed/skills/orchestrate/scripts/pr-watch.sh` (docs in `pr-watch.md`; `pr-watch` on PATH after `install.sh claude`) | PR watcher: wakes the agent on new heads, checks, reviews, comments, unresolved threads and merge-state changes, and reports already-unanswered comments at start | `gh`, `jq`, bash |
 | `tests/workflows.test.mjs` | Control-flow tests for the Workflow scripts with a mocked `agent()` (`node tests/workflows.test.mjs`) | Node |
+| `tests/pr-watch.test.sh` | Offline test of the PR watcher with a stub `gh` (`bash tests/pr-watch.test.sh`) | bash |
 | `extras/stop-evidence-hook/` | Optional Stop hook that bounces "done" claims made without evidence | Claude Code |
 
 `AGENTS.md`, `prompts/`, `schemas.md` and the files in `templates/` are symlinks into the plugin, so

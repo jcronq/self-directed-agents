@@ -25,11 +25,13 @@ add_block() { # file, block-content
   echo "  added to $f"
 }
 
-link_heavy() { # Put the machine-wide heavy-job cap (AGENTS.md §9) on PATH as `heavy`.
+link_heavy() { # Put the machine-wide heavy-job cap (AGENTS.md §9) on PATH as `heavy`, and the PR watcher (§8) as `pr-watch`.
   local bin="$HOME/.local/bin"
   mkdir -p "$bin"
   ln -sf "$KIT/plugins/self-directed/skills/orchestrate/scripts/heavy.sh" "$bin/heavy"
   echo "  linked $bin/heavy"
+  ln -sf "$KIT/plugins/self-directed/skills/orchestrate/scripts/pr-watch.sh" "$bin/pr-watch"
+  echo "  linked $bin/pr-watch"
   case ":$PATH:" in *":$bin:"*) ;; *) echo "  NOTE: add $bin to PATH so agents can run \`heavy\`." ;; esac
 }
 

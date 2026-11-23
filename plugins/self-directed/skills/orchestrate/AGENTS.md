@@ -325,7 +325,7 @@ layer under test:**
   and a README tree with two last-sibling markers both came in through merges.)
 - **Reply to every reviewer comment in the same turn you see it,** and resolve
   each thread once it's addressed.
-- **Watch every PR you own.** Run a watcher (`extras/pr-watch/`) that wakes you
+- **Watch every PR you own.** Run a watcher (`scripts/pr-watch.sh`, on PATH as `pr-watch` after `install.sh claude`) that wakes you
   on new heads, checks, reviews, comments, unresolved threads and merge-state
   changes, and that reports comments and threads already unanswered at start
   instead of baselining them. (A reviewer's question went unanswered for five
