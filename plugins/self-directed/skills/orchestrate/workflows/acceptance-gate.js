@@ -12,7 +12,7 @@ export const meta = {
 //   max_rounds?, review_rounds?,              // test rounds / review rounds per fix; default by effort: spike 1/0, prototype 2/1, solid 3/3, autonomous 4/4
 //   final_gate?: 'package',                    // fix packages; default by effort: autonomous 'package', the others 'none'. 'package' gives each its own final review; 'none' ends
 //                                              // each at first-pass approval. The integrated branch gets the one final gate at Autonomous
-//   fix_lenses?: ['general','arch'],           // default by effort: spike none, prototype ['general'], solid and autonomous ['general','arch']; add 'ux' when fixes are user-facing
+//   fix_lenses?: ['general','arch'],           // default by effort: spike none, prototype ['general'], solid and autonomous ['general','arch']; add 'ux' when fixes are user-facing and 'docs' when they touch docs or behaviour that docs describe
 //   ports?: '9200-9999', scratch?: '/tmp/sd-gate',
 //   worker_model?: 'sonnet',                   // builds, fixes and integrates
 //   review_model?: 'sonnet',                   // first-pass reviews of fix packages and integrations: every lens
@@ -39,7 +39,7 @@ const effortKey = typeof A.effort === 'string' ? A.effort.toLowerCase() : Number
 if (!EFFORT_NAMES.includes(effortKey)) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use ${EFFORT_NAMES.join(', ')})`)
 const E = EFFORT[effortKey]
 const EFFORT_NAME = effortKey[0].toUpperCase() + effortKey.slice(1)
-const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md' }
+const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md', docs: 'docs-reviewer.md' }
 for (const k of ['repo', 'profile', 'prompts', 'branch', 'rubric', 'gate']) if (!A[k]) throw new Error(`missing arg: ${k}`)
 if (!Array.isArray(A.areas) || !A.areas.length) throw new Error('areas must be a non-empty array of {key, focus, interface}')
 const FIX_LENSES = A.fix_lenses || E.lenses
@@ -61,7 +61,7 @@ const TRIAGE = { type: 'object', properties: {
   issues_to_file: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, body: { type: 'string' } }, required: ['title', 'body'] } },
   gate_passed: { type: 'boolean' } },
   required: ['confirmed', 'rejected', 'fix_packages', 'issues_to_file', 'gate_passed'] }
-const WORK = { type: 'object', properties: { branch: { type: 'string' }, commit_sha: { type: 'string' }, changes: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, what: { type: 'string' } }, required: ['file', 'what'] } }, tests_added: { type: 'array', items: { type: 'string' } }, amendments_addressed: { type: 'array', items: { type: 'string' } }, baseline: COUNTS, full_suite_after: COUNTS, live_verified: { type: 'string' }, unresolved: { type: 'array', items: { type: 'string' } }, lessons: { type: 'array', items: { type: 'string' } } }, required: ['branch', 'commit_sha', 'changes', 'tests_added', 'amendments_addressed', 'baseline', 'full_suite_after', 'live_verified', 'unresolved', 'lessons'] }
+const WORK = { type: 'object', properties: { branch: { type: 'string' }, commit_sha: { type: 'string' }, changes: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, what: { type: 'string' } }, required: ['file', 'what'] } }, tests_added: { type: 'array', items: { type: 'string' } }, amendments_addressed: { type: 'array', items: { type: 'string' } }, baseline: COUNTS, full_suite_after: COUNTS, live_verified: { type: 'string' }, known_limitations: { type: 'array', items: { type: 'object', properties: { item: { type: 'string' }, ticket: { type: 'string' } }, required: ['item', 'ticket'] } }, unresolved: { type: 'array', items: { type: 'string' } }, lessons: { type: 'array', items: { type: 'string' } } }, required: ['branch', 'commit_sha', 'changes', 'tests_added', 'amendments_addressed', 'baseline', 'full_suite_after', 'live_verified', 'unresolved', 'lessons'] }
 const REVIEW_SCHEMA = { type: 'object', properties: { approved: { type: 'boolean' }, problems: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, issue: { type: 'string' } }, required: ['file', 'issue'] } }, nits: { type: 'array', items: { type: 'string' } }, verified: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } }, required: ['approved', 'problems', 'verified', 'summary'] }
 const INTEG = { type: 'object', properties: { branch: { type: 'string' }, head_sha: { type: 'string' }, merged: { type: 'array', items: { type: 'string' } }, conflicts_resolved: { type: 'array', items: { type: 'string' } }, full_suite: COUNTS, summary: { type: 'string' } }, required: ['branch', 'head_sha', 'merged', 'full_suite', 'summary'] }
 

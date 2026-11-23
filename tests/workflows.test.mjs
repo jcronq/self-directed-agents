@@ -248,6 +248,10 @@ await scenario('effort 4 (gate): 4 review rounds per fix', AG, { branch: 'feat',
 await rejects("build: effort '3' (string) rejected", RB, { id: 'et', base: 'main', brief: 'b', effort: '3' }, /effort/)
 await rejects("build: effort 'constructor' rejected", RB, { id: 'ec', base: 'main', brief: 'b', effort: 'constructor' }, /effort/)
 await rejects("gate: effort '3' (string) rejected", AG, { branch: 'feat', areas, effort: '3' }, /effort/)
+let dp
+await scenario('build: docs lens runs docs-reviewer.md with the brief and report', RB, { id: 'dl', base: 'main', brief: 'b', effort: 3, lenses: ['general', 'docs'] },
+  (l, p) => { if (l === 'docs:dl#1') dp = p; return l.startsWith('work:') ? work(branchOf(p)) : review(true) },
+  (o, c) => o.approved && c.includes('docs:dl#1') && /prompts\/docs-reviewer\.md/.test(dp) && /\{\{brief\}\} = b/.test(dp) && /\{\{report\}\}/.test(dp))
 await rejects("gate: effort 'constructor' rejected", AG, { branch: 'feat', areas, effort: 'constructor' }, /effort/)
 await rejects('build: empty lenses with rounds above 0 rejected', RB, { id: 'el', base: 'main', brief: 'b', effort: 3, lenses: [] }, /lenses/)
 await rejects('gate: empty fix_lenses with review rounds above 0 rejected', AG, { branch: 'feat', areas, effort: 3, fix_lenses: [] }, /lenses/)

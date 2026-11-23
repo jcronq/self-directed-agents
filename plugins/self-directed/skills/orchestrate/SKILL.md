@@ -23,6 +23,7 @@ The skill takes `effort` (`spike`, `prototype`, `solid` or `autonomous`, case-in
 ## 0. Ground yourself
 - Find the project profile (`PROJECT_PROFILE.md` at the repo root, or wherever the project's CLAUDE.md/AGENTS.md points).
   If there isn't one, run the `project-profile` skill first. Don't orchestrate without a verification recipe.
+- If outside humans or bots review our PRs, ask once for their rules (thresholds, lenses, what blocks) and record them in the profile's "External reviewers' rules"; run them as a pre-review gate (manual §5).
 - Read the status document the profile names, the open issues, and `HANDOFF.md` if it exists.
 - Bring up the environment the profile describes (start services; don't conclude they're unavailable).
 
@@ -48,11 +49,11 @@ that gate is the integrated gate.
 Each package reviews itself the moment its build finishes, while other packages are still building; don't wait for all
 builds. Don't run the full suite in every agent: workers run targeted tests while iterating and one full run at the end;
 the integrator runs the one full suite per round. Cap concurrent packages by CPU count.
-Lenses are `general`, `arch`, `ux`; add `"ux"` for anything user-facing. Give each concurrent package a distinct
+Lenses are `general`, `arch`, `ux`, `docs`; add `"ux"` for anything user-facing and `"docs"` (prompts/docs-reviewer.md, the documentation-truth lens) whenever the change touches docs or behaviour that docs describe. Give each concurrent package a distinct
 port range and scratch dir.
 
 **Without it:** run the same loop by hand with subagents:
-worker (`prompts/_common.md` + `prompts/worker.md`) → reviewers in parallel, one per lens, each in a fresh agent →
+worker (`prompts/_common.md` + `prompts/worker.md`) → reviewers in parallel, one per lens (general, arch, plus ux and docs when they apply), each in a fresh agent →
 if any review blocks, `prompts/revise.md` with the problems verbatim → repeat, at most the level's round cap (§1a: Spike 0, Prototype 1, Solid 3, Autonomous 4).
 Review is two-tier: workers and lens reviewers run on Sonnet. At Autonomous only, once every lens approves, one final reviewer
 (`prompts/final-reviewer.md`, Opus) reviews the whole change (for an organization, the integrated result, not each package); if it blocks, its problems go back to the author
@@ -63,7 +64,7 @@ Never integrate unapproved work. List it for the owner with its last review.
 
 ## 3. Integrate
 `prompts/integrator.md` merges approved branches into one integration branch as they land, runs the one full suite,
-followed by the lens reviews. At Autonomous only, the one final gate (`prompts/final-reviewer.md`, Opus) then runs once, on this integrated
+followed by the lens reviews. It runs the post-merge hygiene pass (manual §8) and reports it in `hygiene`. At Autonomous only, the one final gate (`prompts/final-reviewer.md`, Opus) then runs once, on this integrated
 result; Spike, Prototype and Solid have no final gate. In `acceptance-gate.js`, pass `final_gate: "none"` so fix packages end at first-pass approval; at Autonomous the integrated
 branch gets the final gate.
 Push it right away as a draft PR if the profile allows pushing. The push doesn't wait for the gate; the merge does.
@@ -78,7 +79,7 @@ Push it right away as a draft PR if the profile allows pushing. The push doesn't
 - File `issues_to_file` yourself (or list them, if you're not authorized to file).
 
 ## 5. Land and audit
-- Merge per the profile's procedure, on real green CI only, after confirming CI's pass-count line.
+- Merge per the profile's procedure, on real green CI only, after confirming CI's pass-count line. Before you say "ready to merge": no unresolved review threads, an approving review on the current head, required checks green on that head (manual §11). Reply to and resolve reviewer threads as you go, and run `extras/pr-watch/` for each PR you own (manual §8).
 - Audit: list this effort's branches that aren't merged into the target, and check that their changes are actually
   on the target, line by line. Only then say "merged".
 - Restart or redeploy what the profile says should run on the target.

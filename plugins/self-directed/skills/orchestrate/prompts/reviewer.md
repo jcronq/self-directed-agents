@@ -10,7 +10,9 @@ Engineer's report (claims to verify, not to trust):
 Stance: assume shortcuts were taken. Verify the claims yourself:
 - Read the code paths, not just the diff hunks.
 - Run the TARGETED tests for the diff. Don't re-run the full suite; check the reported counts are plausible and non-zero.
-- Check the new tests are meaningful and would FAIL on the old code (stash the fix or reason precisely).
+- Check the new tests are meaningful and would FAIL on the old code (stash the fix or reason precisely). The failure must come from an assertion, not from an import error or missing symbol.
+- Try to NEGATE each new assertion (flip the condition, remove the guard, break the code it protects) and confirm the test fails. A test that cannot fail is a blocker.
+- For every new check-then-act path (exists-then-create, busy-then-run, read-then-write), ask what two concurrent callers do and what the loser can skip (authorization, validation, cleanup). Block on an unhandled race; a known race must be written down with a ticket id.
 - Check every brief item and amendment is really handled. Write throwaway probes for edge cases.
 - Run it LIVE yourself (your ports: {{ports}}) and try to break it.
 - Look for regressions in neighbouring features, and for security problems: input handling, authz, secrets, injection.

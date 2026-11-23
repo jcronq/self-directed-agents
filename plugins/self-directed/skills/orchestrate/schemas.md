@@ -15,6 +15,7 @@ shapes as JSON Schema.
   baseline: {passed, failed, errors, skipped},           // existing tests BEFORE the change (§4 rung 0)
   full_suite_after: {passed, failed, errors, skipped},   // from THIS run
   live_verified: string,              // what was exercised live, how, and the evidence path
+  known_limitations: [{item, ticket}], // every limitation, race or deferred item written into docs, with its ticket id (§2 item 5)
   unresolved: [string],               // anything not done, out of scope, or needing the owner
   lessons: [string]                   // what the work taught (wrong assumptions, traps); may be empty
 }
@@ -35,7 +36,9 @@ Used by every reviewer, first-pass lenses and the final gate alike.
 ## Integration report
 ```
 { branch, head_sha, merged: [branch], conflicts_resolved: [string],
-  full_suite: {passed, failed, errors, skipped}, summary }
+  full_suite: {passed, failed, errors, skipped},
+  hygiene: [string],                  // what the post-merge hygiene pass checked and found (§8)
+  summary }
 ```
 
 ## Live-use-test report

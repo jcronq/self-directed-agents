@@ -29,6 +29,12 @@ Authoritative source, if longer: <path>
 | Run live | `<cmd>` (ports, env flags) | |
 | CI pass-count evidence | where to read the "N passed" line | |
 
+Validators for generated artifacts: <command per artifact, e.g. an OpenAPI validator for the schema file, a JSON-schema check for config, the package manager's lock check>. Run each, not just a snapshot test.
+
+## External reviewers' rules
+Humans or bots outside the team who review our PRs, and what each blocks on. Ask once, record here, run as a pre-review gate.
+- <reviewer: thresholds (e.g. max open minors), lenses, what blocks, how to re-request>
+
 ## Live use test
 - Product type(s) and the interface for each layer: <e.g. web UI → Playwright; API → HTTP; rules → text protocol>
 - How a tester reaches a given state directly: <fixtures / seed script / debug commands / scenarios>

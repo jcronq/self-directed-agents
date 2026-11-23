@@ -9,7 +9,7 @@ export const meta = {
 //   id, base, brief,                   // package id, base branch/sha, brief text
 //   owned_files?: [], others?: [],     // files this package owns / files owned by parallel packages
 //   consumes?: '', provides?: '',      // interface this package builds against / commits first for dependents
-//   lenses?: ['general','arch','ux'],  // default by effort: spike none, prototype ['general'], solid and autonomous ['general','arch']
+//   lenses?: ['general','arch','ux','docs'],  // default by effort: spike none, prototype ['general'], solid and autonomous ['general','arch']
 //   max_rounds?: ,                     // default by effort: spike 0, prototype 1, solid 3, autonomous 4
 //   ports?: '9200-9999',               // give each concurrent run its own range
 //   scratch?: '/tmp/sd',               // each agent gets <scratch>/<id>/<label>
@@ -43,7 +43,7 @@ const effortKey = typeof A.effort === 'string' ? A.effort.toLowerCase() : Number
 if (!EFFORT_NAMES.includes(effortKey)) throw new Error(`missing or invalid arg: effort (got ${JSON.stringify(A.effort)}; use ${EFFORT_NAMES.join(', ')})`)
 const E = EFFORT[effortKey]
 const EFFORT_NAME = effortKey[0].toUpperCase() + effortKey.slice(1)
-const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md' }
+const ROLE = { general: 'reviewer.md', arch: 'architecture-reviewer.md', ux: 'ux-reviewer.md', docs: 'docs-reviewer.md' }
 const LENSES = A.lenses || E.lenses
 for (const k of ['repo', 'profile', 'prompts', 'id', 'base', 'brief']) if (!A[k]) throw new Error(`missing arg: ${k}`)
 for (const l of LENSES) if (!ROLE[l]) throw new Error(`unknown lens: ${l} (use ${Object.keys(ROLE).join(', ')})`)
@@ -60,7 +60,7 @@ const WORK = { type: 'object', properties: {
   tests_added: { type: 'array', items: { type: 'string' } },
   amendments_addressed: { type: 'array', items: { type: 'string' } },
   baseline: COUNTS, full_suite_after: COUNTS, live_verified: { type: 'string' },
-  unresolved: { type: 'array', items: { type: 'string' } }, lessons: { type: 'array', items: { type: 'string' } } },
+  known_limitations: { type: 'array', items: { type: 'object', properties: { item: { type: 'string' }, ticket: { type: 'string' } }, required: ['item', 'ticket'] } }, unresolved: { type: 'array', items: { type: 'string' } }, lessons: { type: 'array', items: { type: 'string' } } },
   required: ['branch', 'commit_sha', 'changes', 'tests_added', 'amendments_addressed', 'baseline', 'full_suite_after', 'live_verified', 'unresolved', 'lessons'] }
 const REVIEW_SCHEMA = { type: 'object', properties: {
   approved: { type: 'boolean' },

@@ -13,11 +13,13 @@ Effort level {{effort}}: this scales the work (manual §1a). Spike: a smoke chec
 
 How to work:
 1. Read the relevant code and the profile's architecture invariants. Run the existing tests you will rely on first and record the counts in `baseline`, so a later failure is known to be yours or pre-existing.
-2. Test-first. Write tests for each acceptance criterion, run them, and CONFIRM THEY FAIL. Then implement.
+2. Test-first. Write tests for each acceptance criterion, run them, and CONFIRM THEY FAIL THROUGH THEIR ASSERTION (an import error or missing symbol doesn't count). For a guard, also mutate the condition and show the test fails. Then implement.
 3. Iterate with TARGETED tests only (what you touched, plus tests importing it). Don't run the full suite per iteration. Run every heavy step (full suites, builds, browser runs, dependency installs, dev servers or app instances) through the machine-wide cap: `heavy <command>` (the kit's `scripts/heavy.sh`, which the installer puts on PATH). It runs the step under `nice -n 10` and makes it wait while two others run. Other agents share this machine.
 4. Run the change LIVE the way the profile describes, through the cheapest real interface for this layer, and keep the evidence.
-5. Run the FULL suite plus the other checks ONCE, at the end of your package, and record the counts. The integrator runs the one full suite on the merged result.
-6. Commit locally with the project's conventions.
+5. Check every generated artifact (OpenAPI, JSON schema, lockfiles, config) with its standard validator from the profile's "Validators for generated artifacts", not only against our own snapshot, and record the result.
+6. Run the FULL suite plus the other checks ONCE, at the end of your package, and record the counts. The integrator runs the one full suite on the merged result.
+7. Commit locally with the project's conventions.
 
 Before reporting, confirm yourself that the change does what the brief asked (not just that the steps ran). Record anything the work taught you (a wrong assumption, a trap) in `lessons`.
+Every limitation, race or deferred item you write into docs must cite a ticket id before review is requested; list them in `known_limitations` as `{item, ticket}`. If there is no ticket yet, ask the lead to file one and say so in `unresolved`.
 Report using the Worker report schema. List every brief item and amendment in `amendments_addressed`.

@@ -13,6 +13,8 @@ Goal: one short, accurate `PROJECT_PROFILE.md` at the repo root, built from `PRO
    pass count), and start the system live. Write down only commands you saw work. Mark the rest `UNVERIFIED`.
 3. **Check that CI really tests.** Open the CI config and a recent run log, and find the pass-count line. Flag
    `|| true`, collection errors and zero-test runs as a top finding.
+3a. **Name the validators** for every generated artifact (OpenAPI, JSON schema, lockfiles, config), run each once, and record the commands under "Validators for generated artifacts".
+3b. **Record external reviewers' rules.** Find who else reviews PRs (humans, review bots, required checks); ask once for their criteria, and write them under "External reviewers' rules".
 4. **Write invariants a reviewer can enforce,** taken from the existing architecture docs and code patterns.
    Each one must be checkable against a `file:line`. Don't invent architecture the code doesn't have.
 5. **Choose the use-test interface per layer** (manual §6), plus how a tester reaches a given state directly.
