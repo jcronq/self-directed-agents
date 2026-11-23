@@ -11,7 +11,7 @@ It came down to five habits:
    actions, taste, or credentials.
 2. **Reports that force evidence.** "Done" requires test counts from this run, a live check and SHAs. A green
    CI that ran zero tests counts as nothing.
-3. **Review by someone other than the author,** split by lens (correctness, architecture invariants, UX), with
+3. **Review by someone other than the author,** split by lens (correctness, architecture invariants, UX, documentation truth), with
    a cheap first pass then a strongest-model final gate, bounded revise rounds, and no integration of unapproved work.
 4. **A live use test as the acceptance gate.** Agents use the running product through its real interface:
    a browser for UIs, real requests for APIs, the shell for CLIs. Findings need repros, and the gate has an
@@ -29,8 +29,9 @@ package in parallel, reviewers gate each package as it finishes, and an integrat
 | `AGENTS.md` | The operating manual: how to work. Short, generic, no project facts | Any agent |
 | `templates/PROJECT_PROFILE.md` | Per-repo facts: verification recipe, use-test interface, invariants, environment, off-limits | Any agent |
 | `templates/HANDOFF.md`, `templates/memory-note.md` | Resume a long effort on a fresh session or host; record a correction | Any agent |
-| `prompts/` + `schemas.md` | Role prompts (worker, lens reviewers, final reviewer, use tester, triage, integrator) and the report schemas | Any orchestrator, or by hand |
+| `prompts/` + `schemas.md` | Role prompts (worker, lens reviewers: correctness, architecture, UX, documentation truth; final reviewer, use tester, triage, integrator) and the report schemas | Any orchestrator, or by hand |
 | `plugins/self-directed/` | Claude Code plugin: `orchestrate` and `project-profile` skills, plus two Workflow scripts (`reviewed-build`, `acceptance-gate`) | Claude Code |
+| `extras/pr-watch/` | Optional PR watcher: wakes the agent on new heads, checks, reviews, comments, unresolved threads and merge-state changes, and reports already-unanswered comments at start | `gh`, `jq`, bash |
 | `tests/workflows.test.mjs` | Control-flow tests for the Workflow scripts with a mocked `agent()` (`node tests/workflows.test.mjs`) | Node |
 | `extras/stop-evidence-hook/` | Optional Stop hook that bounces "done" claims made without evidence | Claude Code |
 
